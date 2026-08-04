@@ -11,71 +11,78 @@ export interface HostelRoom {
   currentOccupancy: number;
   roomType: 'single' | 'double' | 'triple' | 'dormitory';
   gender: 'male' | 'female' | 'any';
-  amenities?: string[];
+  facilities?: string[];
   monthlyRent: number;
   status: 'available' | 'full' | 'maintenance' | 'reserved';
   createdAt: string;
   updatedAt: string;
-  _count?: {
-    allocations: number;
-  };
+  _count?: { allocations: number };
 }
 
 export interface RoomAllocation {
   id: string;
+  allocationNumber: string;
   studentId: string;
   roomId: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
-  status: 'active' | 'expired' | 'cancelled';
+  allocationDate: string;
+  endDate?: string;
+  status: 'active' | 'completed' | 'cancelled';
+  remarks?: string;
   createdAt: string;
   updatedAt: string;
-  student?: {
-    id: string;
-    rollNumber: string;
-    firstName: string;
-    lastName: string;
-  };
-  room?: {
-    id: string;
-    roomNumber: string;
-    block: string;
-    floor: number;
-  };
+  student?: { id: string; firstName: string; lastName: string; rollNumber: string; program?: { id: string; name: string } };
+  room?: { id: string; roomNumber: string; block: string; floor: number };
 }
 
 export interface MessMenu {
   id: string;
+  menuNumber: string;
   date: string;
-  breakfast?: string;
-  lunch?: string;
-  snacks?: string;
-  dinner?: string;
+  mealType: 'breakfast' | 'lunch' | 'snacks' | 'dinner';
+  menuItems: string[];
   specialNotes?: string;
+  status: 'planned' | 'served' | 'cancelled';
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Complaint {
+export interface HostelComplaint {
   id: string;
+  complaintNumber: string;
   studentId: string;
-  category: 'room' | 'mess' | 'cleaning' | 'maintenance' | 'security' | 'other';
+  roomId?: string;
+  category: 'maintenance' | 'cleaning' | 'food' | 'security' | 'other';
   subject: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'pending' | 'in-progress' | 'resolved' | 'rejected';
+  status: 'submitted' | 'under_review' | 'in_progress' | 'resolved' | 'closed';
   assignedTo?: string;
   resolution?: string;
-  resolvedAt?: string;
+  resolvedDate?: string;
+  attachments?: string[];
   createdAt: string;
   updatedAt: string;
-  student?: {
-    id: string;
-    rollNumber: string;
-    firstName: string;
-    lastName: string;
-  };
+  student?: { id: string; firstName: string; lastName: string; rollNumber: string; room?: { id: string; roomNumber: string } };
+  assignee?: { id: string; firstName: string; lastName: string };
+}
+
+export interface HostelFee {
+  id: string;
+  feeNumber: string;
+  studentId: string;
+  roomId?: string;
+  feeType: 'room_rent' | 'mess_fee' | 'security_deposit' | 'other';
+  amount: number;
+  dueDate: string;
+  paidDate?: string;
+  paymentMethod?: 'cash' | 'online' | 'bank_transfer';
+  transactionId?: string;
+  status: 'pending' | 'paid' | 'overdue' | 'waived';
+  remarks?: string;
+  createdAt: string;
+  updatedAt: string;
+  student?: { id: string; firstName: string; lastName: string; rollNumber: string };
+  room?: { id: string; roomNumber: string; block: string };
 }
 
 export interface CreateRoomDto {
@@ -85,7 +92,7 @@ export interface CreateRoomDto {
   capacity: number;
   roomType: 'single' | 'double' | 'triple' | 'dormitory';
   gender: 'male' | 'female' | 'any';
-  amenities?: string[];
+  facilities?: string[];
   monthlyRent: number;
 }
 
@@ -97,37 +104,57 @@ export interface UpdateRoomDto extends Partial<CreateRoomDto> {
 export interface AllocateRoomDto {
   studentId: string;
   roomId: string;
-  startDate: string;
-  endDate: string;
-  monthlyRent: number;
+  allocationDate: string;
+  endDate?: string;
+  remarks?: string;
 }
 
 export interface UpdateAllocationDto extends Partial<AllocateRoomDto> {
-  status?: 'active' | 'expired' | 'cancelled';
+  status?: 'active' | 'completed' | 'cancelled';
 }
 
 export interface CreateMessMenuDto {
   date: string;
-  breakfast?: string;
-  lunch?: string;
-  snacks?: string;
-  dinner?: string;
+  mealType: 'breakfast' | 'lunch' | 'snacks' | 'dinner';
+  menuItems: string[];
   specialNotes?: string;
 }
 
-export interface UpdateMessMenuDto extends Partial<CreateMessMenuDto> {}
+export interface UpdateMessMenuDto extends Partial<CreateMessMenuDto> {
+  status?: 'planned' | 'served' | 'cancelled';
+}
 
 export interface CreateComplaintDto {
-  category: 'room' | 'mess' | 'cleaning' | 'maintenance' | 'security' | 'other';
+  studentId: string;
+  roomId?: string;
+  category: 'maintenance' | 'cleaning' | 'food' | 'security' | 'other';
   subject: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  attachments?: string[];
 }
 
-export interface UpdateComplaintDto {
-  status?: 'pending' | 'in-progress' | 'resolved' | 'rejected';
+export interface UpdateComplaintDto extends Partial<CreateComplaintDto> {
+  status?: 'submitted' | 'under_review' | 'in_progress' | 'resolved' | 'closed';
   assignedTo?: string;
   resolution?: string;
+  resolvedDate?: string;
+}
+
+export interface CreateHostelFeeDto {
+  studentId: string;
+  roomId?: string;
+  feeType: 'room_rent' | 'mess_fee' | 'security_deposit' | 'other';
+  amount: number;
+  dueDate: string;
+  remarks?: string;
+}
+
+export interface UpdateHostelFeeDto extends Partial<CreateHostelFeeDto> {
+  paidDate?: string;
+  paymentMethod?: 'cash' | 'online' | 'bank_transfer';
+  transactionId?: string;
+  status?: 'pending' | 'paid' | 'overdue' | 'waived';
 }
 
 export const hostelKeys = {
@@ -140,6 +167,8 @@ export const hostelKeys = {
   menu: (filters: any) => [...hostelKeys.menus(), filters] as const,
   complaints: () => [...hostelKeys.all, 'complaints'] as const,
   complaint: (filters: any) => [...hostelKeys.complaints(), filters] as const,
+  fees: () => [...hostelKeys.all, 'fees'] as const,
+  fee: (filters: any) => [...hostelKeys.fees(), filters] as const,
 };
 
 export function useHostelRooms(filters?: any) {
@@ -183,12 +212,22 @@ export function useMessMenus(filters?: any) {
   });
 }
 
-export function useComplaints(filters?: any) {
+export function useHostelComplaints(filters?: any) {
   return useQuery({
     queryKey: hostelKeys.complaint(filters),
     queryFn: async () => {
       const response = await apiClient.get('/hostel/complaints', { params: filters });
-      return response.data.data as Complaint[];
+      return response.data.data as HostelComplaint[];
+    },
+  });
+}
+
+export function useHostelFees(filters?: any) {
+  return useQuery({
+    queryKey: hostelKeys.fee(filters),
+    queryFn: async () => {
+      const response = await apiClient.get('/hostel/fees', { params: filters });
+      return response.data.data as HostelFee[];
     },
   });
 }
@@ -230,6 +269,23 @@ export function useUpdateRoom() {
   });
 }
 
+export function useDeleteRoom() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/hostel/rooms/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: hostelKeys.rooms() });
+      toast.success('Room deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete room');
+    },
+  });
+}
+
 export function useAllocateRoom() {
   const queryClient = useQueryClient();
 
@@ -260,6 +316,7 @@ export function useUpdateAllocation() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: hostelKeys.allocations() });
       queryClient.invalidateQueries({ queryKey: [...hostelKeys.allocations(), data.id] });
+      queryClient.invalidateQueries({ queryKey: hostelKeys.rooms() });
       toast.success('Allocation updated successfully');
     },
     onError: (error: any) => {
@@ -278,10 +335,10 @@ export function useCreateMessMenu() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hostelKeys.menus() });
-      toast.success('Menu created successfully');
+      toast.success('Mess menu created successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create menu');
+      toast.error(error.response?.data?.message || 'Failed to create mess menu');
     },
   });
 }
@@ -297,10 +354,10 @@ export function useUpdateMessMenu() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: hostelKeys.menus() });
       queryClient.invalidateQueries({ queryKey: [...hostelKeys.menus(), data.id] });
-      toast.success('Menu updated successfully');
+      toast.success('Mess menu updated successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update menu');
+      toast.error(error.response?.data?.message || 'Failed to update mess menu');
     },
   });
 }
@@ -311,7 +368,7 @@ export function useCreateComplaint() {
   return useMutation({
     mutationFn: async (data: CreateComplaintDto) => {
       const response = await apiClient.post('/hostel/complaints', data);
-      return response.data.data as Complaint;
+      return response.data.data as HostelComplaint;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hostelKeys.complaints() });
@@ -329,7 +386,7 @@ export function useUpdateComplaint() {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateComplaintDto }) => {
       const response = await apiClient.patch(`/hostel/complaints/${id}`, data);
-      return response.data.data as Complaint;
+      return response.data.data as HostelComplaint;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: hostelKeys.complaints() });
@@ -338,6 +395,43 @@ export function useUpdateComplaint() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update complaint');
+    },
+  });
+}
+
+export function useCreateHostelFee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateHostelFeeDto) => {
+      const response = await apiClient.post('/hostel/fees', data);
+      return response.data.data as HostelFee;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: hostelKeys.fees() });
+      toast.success('Fee created successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create fee');
+    },
+  });
+}
+
+export function useUpdateHostelFee() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateHostelFeeDto }) => {
+      const response = await apiClient.patch(`/hostel/fees/${id}`, data);
+      return response.data.data as HostelFee;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: hostelKeys.fees() });
+      queryClient.invalidateQueries({ queryKey: [...hostelKeys.fees(), data.id] });
+      toast.success('Fee updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update fee');
     },
   });
 }

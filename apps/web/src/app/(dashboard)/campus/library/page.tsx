@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useExamSchedules, useExams, useHallTickets, useExamResults } from '@/services/routeination.service';
+import { useExamSchedules, useExams, useHallTickets, useExamResults } from '@/services/bookination.service';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Bus, Map, Clock, IndianRupee } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, BookOpen, BookCopy, IndianRupee, Bookmark } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
@@ -37,10 +37,10 @@ const statusColors = {
 } as const;
 
 export default function ExaminationsPage() {
-  const [tab, setTab] = useState<'schedules' | 'routes' | 'hall-tickets' | 'results'>('schedules');
+  const [tab, setTab] = useState<'schedules' | 'books' | 'hall-tickets' | 'results'>('schedules');
   const [searchQuery, setSearchQuery] = useState('');
   const { data: schedules, isLoading: schedulesLoading } = useExamSchedules();
-  const { data: routes, isLoading: routesLoading } = useExams();
+  const { data: books, isLoading: booksLoading } = useExams();
   const { data: hallTickets, isLoading: hallTicketsLoading } = useHallTickets();
   const { data: results, isLoading: resultsLoading } = useExamResults();
 
@@ -57,7 +57,7 @@ export default function ExaminationsPage() {
         const schedule = row.original;
         return (
           <Link
-            href={`/campus/transport/schedules/${schedule.id}`}
+            href={`/campus/library/schedules/${schedule.id}`}
             className="font-medium hover:underline"
           >
             {schedule.title}
@@ -66,9 +66,9 @@ export default function ExaminationsPage() {
       },
     },
     {
-      accessorKey: 'routeType',
+      accessorKey: 'bookType',
       header: 'Type',
-      cell: ({ row }) => <Badge variant="secondary">{row.getValue('routeType')}</Badge>,
+      cell: ({ row }) => <Badge variant="secondary">{row.getValue('bookType')}</Badge>,
     },
     {
       accessorKey: 'startDate',
@@ -81,14 +81,14 @@ export default function ExaminationsPage() {
       cell: ({ row }) => format(new Date(row.original.endDate), 'MMM dd, yyyy'),
     },
     {
-      accessorKey: 'routes',
+      accessorKey: 'books',
       header: () => (
         <div className="flex items-center">
-          <Map className="mr-2 h-4 w-4" />
+          <BookCopy className="mr-2 h-4 w-4" />
           Exams
         </div>
       ),
-      cell: ({ row }) => row.original._count?.routes || 0,
+      cell: ({ row }) => row.original._count?.books || 0,
     },
     {
       accessorKey: 'status',
@@ -117,12 +117,12 @@ export default function ExaminationsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/schedules/${schedule.id}`}>
+                <Link href={`/campus/library/schedules/${schedule.id}`}>
                   View Details
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/schedules/${schedule.id}/edit`}>
+                <Link href={`/campus/library/schedules/${schedule.id}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit
                 </Link>
@@ -146,11 +146,11 @@ export default function ExaminationsPage() {
     },
   ];
 
-  const routeColumns: ColumnDef<any>[] = [
+  const bookColumns: ColumnDef<any>[] = [
     {
-      accessorKey: 'routeNumber',
+      accessorKey: 'bookNumber',
       header: 'Exam No.',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('routeNumber')}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('bookNumber')}</Badge>,
     },
     {
       accessorKey: 'courseOffering',
@@ -166,9 +166,9 @@ export default function ExaminationsPage() {
       },
     },
     {
-      accessorKey: 'routeDate',
+      accessorKey: 'bookDate',
       header: 'Exam Date',
-      cell: ({ row }) => format(new Date(row.original.routeDate), 'MMM dd, yyyy'),
+      cell: ({ row }) => format(new Date(row.original.bookDate), 'MMM dd, yyyy'),
     },
     {
       accessorKey: 'startTime',
@@ -199,7 +199,7 @@ export default function ExaminationsPage() {
     {
       id: 'actions',
       cell: ({ row }) => {
-        const route = row.original;
+        const book = row.original;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -211,12 +211,12 @@ export default function ExaminationsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/routes/${route.id}`}>
+                <Link href={`/campus/library/books/${book.id}`}>
                   View Details
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/routes/${route.id}/edit`}>
+                <Link href={`/campus/library/books/${book.id}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit
                 </Link>
@@ -289,7 +289,7 @@ export default function ExaminationsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/hall-tickets/${hallTicket.id}`}>
+                <Link href={`/campus/library/hall-tickets/${hallTicket.id}`}>
                   View Details
                 </Link>
               </DropdownMenuItem>
@@ -320,14 +320,14 @@ export default function ExaminationsPage() {
       },
     },
     {
-      accessorKey: 'route',
+      accessorKey: 'book',
       header: 'Exam',
       cell: ({ row }) => {
-        const route = row.original.route;
-        return route ? (
+        const book = row.original.book;
+        return book ? (
           <div>
-            <p className="font-medium">{route.routeNumber}</p>
-            <p className="text-sm text-muted-foreground">{route.courseOffering?.course?.name}</p>
+            <p className="font-medium">{book.bookNumber}</p>
+            <p className="text-sm text-muted-foreground">{book.courseOffering?.course?.name}</p>
           </div>
         ) : 'N/A';
       },
@@ -374,7 +374,7 @@ export default function ExaminationsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/transport/results/${result.id}`}>
+                <Link href={`/campus/library/results/${result.id}`}>
                   View Details
                 </Link>
               </DropdownMenuItem>
@@ -388,13 +388,13 @@ export default function ExaminationsPage() {
   const filteredSchedules = schedules?.filter(
     (schedule) =>
       schedule.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      schedule.routeType.toLowerCase().includes(searchQuery.toLowerCase())
+      schedule.bookType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredExams = routes?.filter(
-    (route) =>
-      route.routeNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      route.courseOffering?.course?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredExams = books?.filter(
+    (book) =>
+      book.bookNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      book.courseOffering?.course?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredHallTickets = hallTickets?.filter(
@@ -412,16 +412,16 @@ export default function ExaminationsPage() {
   return (
     <div className="container mx-auto py-10">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Transport Management</h1>
+        <h1 className="text-3xl font-bold">Library Management</h1>
         <p className="text-muted-foreground mt-1">
-          Manage route schedules, hall tickets, and results
+          Manage book schedules, hall tickets, and results
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
         <TabsList>
           <TabsTrigger value="schedules">Schedules</TabsTrigger>
-          <TabsTrigger value="routes">Exams</TabsTrigger>
+          <TabsTrigger value="books">Exams</TabsTrigger>
           <TabsTrigger value="hall-tickets">Hall Tickets</TabsTrigger>
           <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
@@ -432,7 +432,7 @@ export default function ExaminationsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Input
-                placeholder={tab === 'schedules' ? 'Search schedules...' : tab === 'routes' ? 'Search routes...' : tab === 'hall-tickets' ? 'Search hall tickets...' : 'Search results...'}
+                placeholder={tab === 'schedules' ? 'Search schedules...' : tab === 'books' ? 'Search books...' : tab === 'hall-tickets' ? 'Search hall tickets...' : 'Search results...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -445,8 +445,8 @@ export default function ExaminationsPage() {
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/transport/schedules/new">
-                <Bus className="mr-2 h-4 w-4" />
+              <Link href="/campus/library/schedules/new">
+                <BookOpen className="mr-2 h-4 w-4" />
                 Create Schedule
               </Link>
             </Button>
@@ -457,30 +457,30 @@ export default function ExaminationsPage() {
             isLoading={schedulesLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Bus className="inline h-4 w-4 mr-1" />
+            <BookOpen className="inline h-4 w-4 mr-1" />
             Total: {filteredSchedules?.length || 0} schedules
           </div>
         </>
       )}
 
-      {tab === 'routes' && (
+      {tab === 'books' && (
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/transport/routes/new">
-                <Map className="mr-2 h-4 w-4" />
+              <Link href="/campus/library/books/new">
+                <BookCopy className="mr-2 h-4 w-4" />
                 Schedule Exam
               </Link>
             </Button>
           </div>
           <DataTable
-            columns={routeColumns}
+            columns={bookColumns}
             data={filteredExams || []}
-            isLoading={routesLoading}
+            isLoading={booksLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Map className="inline h-4 w-4 mr-1" />
-            Total: {filteredExams?.length || 0} routes
+            <BookCopy className="inline h-4 w-4 mr-1" />
+            Total: {filteredExams?.length || 0} books
           </div>
         </>
       )}
@@ -489,8 +489,8 @@ export default function ExaminationsPage() {
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/transport/hall-tickets/new">
-                <Clock className="mr-2 h-4 w-4" />
+              <Link href="/campus/library/hall-tickets/new">
+                <IndianRupee className="mr-2 h-4 w-4" />
                 Generate Hall Ticket
               </Link>
             </Button>
@@ -501,7 +501,7 @@ export default function ExaminationsPage() {
             isLoading={hallTicketsLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Clock className="inline h-4 w-4 mr-1" />
+            <IndianRupee className="inline h-4 w-4 mr-1" />
             Total: {filteredHallTickets?.length || 0} hall tickets
           </div>
         </>
@@ -511,8 +511,8 @@ export default function ExaminationsPage() {
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/transport/results/new">
-                <IndianRupee className="mr-2 h-4 w-4" />
+              <Link href="/campus/library/results/new">
+                <Bookmark className="mr-2 h-4 w-4" />
                 Create Result
               </Link>
             </Button>
@@ -523,7 +523,7 @@ export default function ExaminationsPage() {
             isLoading={resultsLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <IndianRupee className="inline h-4 w-4 mr-1" />
+            <Bookmark className="inline h-4 w-4 mr-1" />
             Total: {filteredResults?.length || 0} results
           </div>
         </>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useHostelRooms, useRoomAllocations, useMessMenus, useComplaints } from '@/services/hostel.service';
+import { useExamSchedules, useExams, useHallTickets, useExamResults } from '@/services/roomination.service';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,67 +12,58 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Building2, Users, Utensils, MessageSquare } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Building2, Bed, Utensils, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 
 const statusColors = {
-  available: 'default',
-  full: 'secondary',
-  maintenance: 'outline',
-  reserved: 'destructive',
-  active: 'default',
-  expired: 'secondary',
+  scheduled: 'secondary',
+  ongoing: 'default',
+  completed: 'outline',
   cancelled: 'destructive',
-  pending: 'secondary',
-  'in-progress': 'default',
-  resolved: 'outline',
-  rejected: 'destructive',
+  pass: 'default',
+  fail: 'destructive',
+  absent: 'secondary',
+  withheld: 'secondary',
+  generated: 'secondary',
+  downloaded: 'default',
+  printed: 'outline',
 } as const;
 
-const priorityColors = {
-  low: 'secondary',
-  medium: 'default',
-  high: 'destructive',
-  urgent: 'destructive',
-} as const;
-
-export default function HostelPage() {
-  const [tab, setTab] = useState<'rooms' | 'allocations' | 'mess' | 'complaints'>('rooms');
+export default function ExaminationsPage() {
+  const [tab, setTab] = useState<'schedules' | 'rooms' | 'hall-tickets' | 'results'>('schedules');
   const [searchQuery, setSearchQuery] = useState('');
-  const { data: rooms, isLoading: roomsLoading } = useHostelRooms();
-  const { data: allocations, isLoading: allocationsLoading } = useRoomAllocations();
-  const { data: menus, isLoading: menusLoading } = useMessMenus();
-  const { data: complaints, isLoading: complaintsLoading } = useComplaints();
+  const { data: schedules, isLoading: schedulesLoading } = useExamSchedules();
+  const { data: rooms, isLoading: roomsLoading } = useExams();
+  const { data: hallTickets, isLoading: hallTicketsLoading } = useHallTickets();
+  const { data: results, isLoading: resultsLoading } = useExamResults();
 
-  const roomColumns: ColumnDef<any>[] = [
+  const scheduleColumns: ColumnDef<any>[] = [
     {
-      accessorKey: 'roomNumber',
-      header: 'Room Number',
+      accessorKey: 'scheduleNumber',
+      header: 'Schedule No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('scheduleNumber')}</Badge>,
+    },
+    {
+      accessorKey: 'title',
+      header: 'Title',
       cell: ({ row }) => {
-        const room = row.original;
+        const schedule = row.original;
         return (
           <Link
-            href={`/campus/hostel/rooms/${room.id}`}
+            href={`/campus/hostel/schedules/${schedule.id}`}
             className="font-medium hover:underline"
           >
-            {room.roomNumber}
+            {schedule.title}
           </Link>
         );
       },
-    },
-    {
-      accessorKey: 'block',
-      header: 'Block',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('block')}</Badge>,
-    },
-    {
-      accessorKey: 'floor',
-      header: 'Floor',
     },
     {
       accessorKey: 'roomType',
@@ -80,22 +71,118 @@ export default function HostelPage() {
       cell: ({ row }) => <Badge variant="secondary">{row.getValue('roomType')}</Badge>,
     },
     {
-      accessorKey: 'occupancy',
+      accessorKey: 'startDate',
+      header: 'Start Date',
+      cell: ({ row }) => format(new Date(row.original.startDate), 'MMM dd, yyyy'),
+    },
+    {
+      accessorKey: 'endDate',
+      header: 'End Date',
+      cell: ({ row }) => format(new Date(row.original.endDate), 'MMM dd, yyyy'),
+    },
+    {
+      accessorKey: 'rooms',
       header: () => (
         <div className="flex items-center">
-          <Users className="mr-2 h-4 w-4" />
-          Occupancy
+          <Bed className="mr-2 h-4 w-4" />
+          Exams
         </div>
       ),
+      cell: ({ row }) => row.original._count?.rooms || 0,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
       cell: ({ row }) => {
-        const room = row.original;
-        return `${room.currentOccupancy}/${room.capacity}`;
+        const status = row.getValue('status') as keyof typeof statusColors;
+        return (
+          <Badge variant={statusColors[status] || 'default'}>
+            {status}
+          </Badge>
+        );
       },
     },
     {
-      accessorKey: 'monthlyRent',
-      header: 'Monthly Rent',
-      cell: ({ row }) => `₹${(row.getValue('monthlyRent') as number).toLocaleString('en-IN')}`,
+      id: 'actions',
+      cell: ({ row }) => {
+        const schedule = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/hostel/schedules/${schedule.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/hostel/schedules/${schedule.id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-red-600"
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete this schedule?')) {
+                    toast.success('Schedule deleted successfully');
+                  }
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const roomColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'roomNumber',
+      header: 'Exam No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('roomNumber')}</Badge>,
+    },
+    {
+      accessorKey: 'courseOffering',
+      header: 'Course',
+      cell: ({ row }) => {
+        const course = row.original.courseOffering?.course;
+        return course ? (
+          <div>
+            <p className="font-medium">{course.name}</p>
+            <p className="text-sm text-muted-foreground">{course.code}</p>
+          </div>
+        ) : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'roomDate',
+      header: 'Exam Date',
+      cell: ({ row }) => format(new Date(row.original.roomDate), 'MMM dd, yyyy'),
+    },
+    {
+      accessorKey: 'startTime',
+      header: 'Time',
+      cell: ({ row }) => `${row.original.startTime} - ${row.original.endTime}`,
+    },
+    {
+      accessorKey: 'duration',
+      header: 'Duration',
+      cell: ({ row }) => `${row.getValue('duration')} min`,
+    },
+    {
+      accessorKey: 'maxMarks',
+      header: 'Max Marks',
     },
     {
       accessorKey: 'status',
@@ -141,46 +228,39 @@ export default function HostelPage() {
     },
   ];
 
-  const allocationColumns: ColumnDef<any>[] = [
+  const hallTicketColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'hallTicketNumber',
+      header: 'Hall Ticket No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('hallTicketNumber')}</Badge>,
+    },
     {
       accessorKey: 'student',
       header: 'Student',
       cell: ({ row }) => {
-        const allocation = row.original;
-        return (
+        const student = row.original.student;
+        return student ? (
           <div>
-            <p className="font-medium">
-              {allocation.student?.firstName} {allocation.student?.lastName}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {allocation.student?.rollNumber}
-            </p>
+            <p className="font-medium">{student.firstName} {student.lastName}</p>
+            <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
           </div>
-        );
+        ) : 'N/A';
       },
     },
     {
-      accessorKey: 'room',
-      header: 'Room',
-      cell: ({ row }) => {
-        const allocation = row.original;
-        return `${allocation.room?.roomNumber} (${allocation.room?.block})`;
-      },
+      accessorKey: 'schedule',
+      header: 'Schedule',
+      cell: ({ row }) => row.original.schedule?.title || 'N/A',
     },
     {
-      accessorKey: 'startDate',
-      header: 'Start Date',
-      cell: ({ row }) => format(new Date(row.original.startDate), 'MMM dd, yyyy'),
+      accessorKey: 'generatedDate',
+      header: 'Generated Date',
+      cell: ({ row }) => format(new Date(row.original.generatedDate), 'MMM dd, yyyy'),
     },
     {
-      accessorKey: 'endDate',
-      header: 'End Date',
-      cell: ({ row }) => format(new Date(row.original.endDate), 'MMM dd, yyyy'),
-    },
-    {
-      accessorKey: 'monthlyRent',
-      header: 'Monthly Rent',
-      cell: ({ row }) => `₹${(row.getValue('monthlyRent') as number).toLocaleString('en-IN')}`,
+      accessorKey: 'seatNumber',
+      header: 'Seat No.',
+      cell: ({ row }) => row.original.seatNumber || 'N/A',
     },
     {
       accessorKey: 'status',
@@ -194,38 +274,10 @@ export default function HostelPage() {
         );
       },
     },
-  ];
-
-  const menuColumns: ColumnDef<any>[] = [
-    {
-      accessorKey: 'date',
-      header: 'Date',
-      cell: ({ row }) => format(new Date(row.original.date), 'MMM dd, yyyy'),
-    },
-    {
-      accessorKey: 'breakfast',
-      header: 'Breakfast',
-      cell: ({ row }) => row.original.breakfast || 'N/A',
-    },
-    {
-      accessorKey: 'lunch',
-      header: 'Lunch',
-      cell: ({ row }) => row.original.lunch || 'N/A',
-    },
-    {
-      accessorKey: 'snacks',
-      header: 'Snacks',
-      cell: ({ row }) => row.original.snacks || 'N/A',
-    },
-    {
-      accessorKey: 'dinner',
-      header: 'Dinner',
-      cell: ({ row }) => row.original.dinner || 'N/A',
-    },
     {
       id: 'actions',
       cell: ({ row }) => {
-        const menu = row.original;
+        const hallTicket = row.original;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -237,9 +289,8 @@ export default function HostelPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/campus/hostel/menus/${menu.id}/edit`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit
+                <Link href={`/campus/hostel/hall-tickets/${hallTicket.id}`}>
+                  View Details
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -249,46 +300,52 @@ export default function HostelPage() {
     },
   ];
 
-  const complaintColumns: ColumnDef<any>[] = [
+  const resultColumns: ColumnDef<any>[] = [
     {
-      accessorKey: 'subject',
-      header: 'Subject',
-      cell: ({ row }) => {
-        const complaint = row.original;
-        return (
-          <Link
-            href={`/campus/hostel/complaints/${complaint.id}`}
-            className="font-medium hover:underline"
-          >
-            {complaint.subject}
-          </Link>
-        );
-      },
+      accessorKey: 'resultNumber',
+      header: 'Result No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('resultNumber')}</Badge>,
     },
     {
       accessorKey: 'student',
       header: 'Student',
       cell: ({ row }) => {
-        const complaint = row.original;
-        return `${complaint.student?.firstName} ${complaint.student?.lastName}`;
+        const student = row.original.student;
+        return student ? (
+          <div>
+            <p className="font-medium">{student.firstName} {student.lastName}</p>
+            <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+          </div>
+        ) : 'N/A';
       },
     },
     {
-      accessorKey: 'category',
-      header: 'Category',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('category')}</Badge>,
-    },
-    {
-      accessorKey: 'priority',
-      header: 'Priority',
+      accessorKey: 'room',
+      header: 'Exam',
       cell: ({ row }) => {
-        const priority = row.getValue('priority') as keyof typeof priorityColors;
-        return (
-          <Badge variant={priorityColors[priority] || 'default'}>
-            {priority}
-          </Badge>
-        );
+        const room = row.original.room;
+        return room ? (
+          <div>
+            <p className="font-medium">{room.roomNumber}</p>
+            <p className="text-sm text-muted-foreground">{room.courseOffering?.course?.name}</p>
+          </div>
+        ) : 'N/A';
       },
+    },
+    {
+      accessorKey: 'marksObtained',
+      header: 'Marks',
+      cell: ({ row }) => `${row.original.marksObtained}/${row.original.maxMarks}`,
+    },
+    {
+      accessorKey: 'percentage',
+      header: 'Percentage',
+      cell: ({ row }) => `${row.original.percentage}%`,
+    },
+    {
+      accessorKey: 'grade',
+      header: 'Grade',
+      cell: ({ row }) => row.original.grade || 'N/A',
     },
     {
       accessorKey: 'status',
@@ -303,35 +360,53 @@ export default function HostelPage() {
       },
     },
     {
-      accessorKey: 'createdAt',
-      header: 'Created',
-      cell: ({ row }) => format(new Date(row.original.createdAt), 'MMM dd, yyyy'),
+      id: 'actions',
+      cell: ({ row }) => {
+        const result = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/hostel/results/${result.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 
-  const filteredRooms = rooms?.filter(
+  const filteredSchedules = schedules?.filter(
+    (schedule) =>
+      schedule.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      schedule.roomType.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredExams = rooms?.filter(
     (room) =>
       room.roomNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      room.block.toLowerCase().includes(searchQuery.toLowerCase())
+      room.courseOffering?.course?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredAllocations = allocations?.filter(
-    (allocation) =>
-      allocation.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      allocation.student?.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      allocation.room?.roomNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredHallTickets = hallTickets?.filter(
+    (hallTicket) =>
+      hallTicket.hallTicketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      hallTicket.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredMenus = menus?.filter(
-    (menu) =>
-      format(new Date(menu.date), 'MMM dd, yyyy').toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const filteredComplaints = complaints?.filter(
-    (complaint) =>
-      complaint.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      complaint.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      complaint.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredResults = results?.filter(
+    (result) =>
+      result.resultNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      result.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -339,16 +414,16 @@ export default function HostelPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Hostel Management</h1>
         <p className="text-muted-foreground mt-1">
-          Manage hostel rooms, allocations, mess, and complaints
+          Manage room schedules, hall tickets, and results
         </p>
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
         <TabsList>
-          <TabsTrigger value="rooms">Rooms</TabsTrigger>
-          <TabsTrigger value="allocations">Allocations</TabsTrigger>
-          <TabsTrigger value="mess">Mess Menu</TabsTrigger>
-          <TabsTrigger value="complaints">Complaints</TabsTrigger>
+          <TabsTrigger value="schedules">Schedules</TabsTrigger>
+          <TabsTrigger value="rooms">Exams</TabsTrigger>
+          <TabsTrigger value="hall-tickets">Hall Tickets</TabsTrigger>
+          <TabsTrigger value="results">Results</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -357,7 +432,7 @@ export default function HostelPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Input
-                placeholder={tab === 'rooms' ? 'Search rooms...' : tab === 'allocations' ? 'Search allocations...' : tab === 'mess' ? 'Search menus...' : 'Search complaints...'}
+                placeholder={tab === 'schedules' ? 'Search schedules...' : tab === 'rooms' ? 'Search rooms...' : tab === 'hall-tickets' ? 'Search hall tickets...' : 'Search results...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -366,90 +441,90 @@ export default function HostelPage() {
         </CardContent>
       </Card>
 
+      {tab === 'schedules' && (
+        <>
+          <div className="mb-4 flex justify-end">
+            <Button asChild>
+              <Link href="/campus/hostel/schedules/new">
+                <Building2 className="mr-2 h-4 w-4" />
+                Create Schedule
+              </Link>
+            </Button>
+          </div>
+          <DataTable
+            columns={scheduleColumns}
+            data={filteredSchedules || []}
+            isLoading={schedulesLoading}
+          />
+          <div className="mt-4 text-sm text-muted-foreground text-center">
+            <Building2 className="inline h-4 w-4 mr-1" />
+            Total: {filteredSchedules?.length || 0} schedules
+          </div>
+        </>
+      )}
+
       {tab === 'rooms' && (
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
               <Link href="/campus/hostel/rooms/new">
-                <Building2 className="mr-2 h-4 w-4" />
-                Add Room
+                <Bed className="mr-2 h-4 w-4" />
+                Schedule Exam
               </Link>
             </Button>
           </div>
           <DataTable
             columns={roomColumns}
-            data={filteredRooms || []}
+            data={filteredExams || []}
             isLoading={roomsLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Building2 className="inline h-4 w-4 mr-1" />
-            Total: {filteredRooms?.length || 0} rooms
+            <Bed className="inline h-4 w-4 mr-1" />
+            Total: {filteredExams?.length || 0} rooms
           </div>
         </>
       )}
 
-      {tab === 'allocations' && (
+      {tab === 'hall-tickets' && (
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/hostel/allocations/new">
-                <Users className="mr-2 h-4 w-4" />
-                Allocate Room
-              </Link>
-            </Button>
-          </div>
-          <DataTable
-            columns={allocationColumns}
-            data={filteredAllocations || []}
-            isLoading={allocationsLoading}
-          />
-          <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Users className="inline h-4 w-4 mr-1" />
-            Total: {filteredAllocations?.length || 0} allocations
-          </div>
-        </>
-      )}
-
-      {tab === 'mess' && (
-        <>
-          <div className="mb-4 flex justify-end">
-            <Button asChild>
-              <Link href="/campus/hostel/menus/new">
+              <Link href="/campus/hostel/hall-tickets/new">
                 <Utensils className="mr-2 h-4 w-4" />
-                Add Menu
+                Generate Hall Ticket
               </Link>
             </Button>
           </div>
           <DataTable
-            columns={menuColumns}
-            data={filteredMenus || []}
-            isLoading={menusLoading}
+            columns={hallTicketColumns}
+            data={filteredHallTickets || []}
+            isLoading={hallTicketsLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
             <Utensils className="inline h-4 w-4 mr-1" />
-            Total: {filteredMenus?.length || 0} menus
+            Total: {filteredHallTickets?.length || 0} hall tickets
           </div>
         </>
       )}
 
-      {tab === 'complaints' && (
+      {tab === 'results' && (
         <>
           <div className="mb-4 flex justify-end">
             <Button asChild>
-              <Link href="/campus/hostel/complaints/new">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Submit Complaint
+              <Link href="/campus/hostel/results/new">
+                <IndianRupee className="mr-2 h-4 w-4" />
+                Create Result
               </Link>
             </Button>
           </div>
           <DataTable
-            columns={complaintColumns}
-            data={filteredComplaints || []}
-            isLoading={complaintsLoading}
+            columns={resultColumns}
+            data={filteredResults || []}
+            isLoading={resultsLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <MessageSquare className="inline h-4 w-4 mr-1" />
-            Total: {filteredComplaints?.length || 0} complaints
+            <IndianRupee className="inline h-4 w-4 mr-1" />
+            Total: {filteredResults?.length || 0} results
           </div>
         </>
       )}
