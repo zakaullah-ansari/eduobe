@@ -7,11 +7,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAuthStore } from '@/stores/auth-store';
 import { apiClient } from '@/lib/api-client';
 
 const registerSchema = z
@@ -28,6 +31,9 @@ const registerSchema = z
     lastName: z.string().min(1, 'Last name is required'),
     tenantId: z.string().min(1, 'Tenant ID is required'),
     phone: z.string().optional(),
+    agreeToTerms: z.boolean().refine((val) => val === true, {
+      message: 'You must agree to the terms and conditions',
+    }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -38,24 +44,48 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { setUser, setToken } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      agreeToTerms: false,
+    },
   });
+
+  const agreeToTerms = watch('agreeToTerms');
 
   const onSubmit = async (data: RegisterFormData) => {
     setIsLoading(true);
     try {
-      const { confirmPassword, ...submitData } = data;
+      const { confirmPassword, agreeToTerms, ...submitData } = data;
+      
+      // Register user
       await apiClient.post('/auth/register', submitData);
+      
+      toast.success('Account created successfully! Please check your email.');
+      
+      // Auto-login after registration
+      const loginResponse = await apiClient.post('/auth/login', {
+        email: data.email,
+        password: data.password,
+        tenantId: data.tenantId,
+      });
 
-      toast.success('Registration successful! Please check your email.');
-      router.push('/login');
+      const { accessToken, user } = loginResponse.data.data;
+      setToken(accessToken);
+      setUser(user);
+      document.cookie = `auth-token=${accessToken}; path=/; max-age=${15 * 60}`;
+
+      toast.success('Welcome to EduOBE!');
+      router.push('/dashboard');
     } catch (error: any) {
       const message = error.response?.data?.message || 'Registration failed';
       toast.error(message);
@@ -69,14 +99,18 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-3xl">Create Account</CardTitle>
-          <CardDescription>Sign up for EduOBE</CardDescription>
+          <CardDescription>Sign up for your EduOBE account</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" {...register('firstName')} />
+                <Input
+                  id="firstName"
+                  placeholder="John"
+                  {...register('firstName')}
+                />
                 {errors.firstName && (
                   <p className="text-sm text-destructive">{errors.firstName.message}</p>
                 )}
@@ -84,7 +118,11 @@ export default function RegisterPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" {...register('lastName')} />
+                <Input
+                  id="lastName"
+                  placeholder="Doe"
+                  {...register('lastName')}
+                />
                 {errors.lastName && (
                   <p className="text-sm text-destructive">{errors.lastName.message}</p>
                 )}
@@ -93,7 +131,12 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" {...register('email')} />
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                {...register('email')}
+              />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
@@ -101,20 +144,37 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="tenantId">Tenant ID</Label>
-              <Input id="tenantId" placeholder="vjti" {...register('tenantId')} />
+              <Input
+                id="tenantId"
+                placeholder="vjti"
+                {...register('tenantId')}
+              />
               {errors.tenantId && (
                 <p className="text-sm text-destructive">{errors.tenantId.message}</p>
               )}
+              <p className="text-xs text-muted-foreground">
+                Contact your administrator if you don't know your tenant ID
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="phone">Phone (Optional)</Label>
-              <Input id="phone" type="tel" {...register('phone')} />
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1234567890"
+                {...register('phone')}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" {...register('password')} />
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+              />
               {errors.password && (
                 <p className="text-sm text-destructive">{errors.password.message}</p>
               )}
@@ -125,11 +185,33 @@ export default function RegisterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input id="confirmPassword" type="password" {...register('confirmPassword')} />
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                {...register('confirmPassword')}
+              />
               {errors.confirmPassword && (
                 <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
               )}
             </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="agreeToTerms"
+                checked={agreeToTerms}
+                onCheckedChange={(checked) => setValue('agreeToTerms', checked as boolean)}
+              />
+              <Label htmlFor="agreeToTerms" className="text-sm">
+                I agree to the{' '}
+                <Link href="/terms" className="text-primary hover:underline">
+                  terms and conditions
+                </Link>
+              </Label>
+            </div>
+            {errors.agreeToTerms && (
+              <p className="text-sm text-destructive">{errors.agreeToTerms.message}</p>
+            )}
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
@@ -145,9 +227,9 @@ export default function RegisterPage() {
 
           <div className="mt-4 text-center text-sm">
             Already have an account?{' '}
-            <a href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline">
               Sign in
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>
