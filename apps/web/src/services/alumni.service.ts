@@ -4,24 +4,32 @@ import { toast } from 'sonner';
 
 export interface Alumni {
   id: string;
-  studentId: string;
+  alumniNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
   graduationYear: number;
+  programId: string;
+  departmentId: string;
   currentCompany?: string;
   currentDesignation?: string;
   location?: string;
   linkedIn?: string;
-  email: string;
-  phone?: string;
   bio?: string;
+  status: 'active' | 'inactive' | 'deceased';
   achievements?: string[];
-  status: 'active' | 'inactive';
   createdAt: string;
   updatedAt: string;
-  student?: {
+  program?: {
     id: string;
-    rollNumber: string;
-    firstName: string;
-    lastName: string;
+    name: string;
+    code: string;
+  };
+  department?: {
+    id: string;
+    name: string;
+    code: string;
   };
   _count?: {
     events: number;
@@ -34,80 +42,132 @@ export interface AlumniEvent {
   id: string;
   title: string;
   description?: string;
-  date: string;
+  eventType: 'reunion' | 'networking' | 'seminar' | 'workshop' | 'fundraiser' | 'other';
+  eventDate: string;
   location?: string;
-  type: 'networking' | 'seminar' | 'workshop' | 'reunion' | 'mentorship';
   organizer?: string;
   maxAttendees?: number;
+  currentAttendees?: number;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  attachments?: string[];
   createdAt: string;
   updatedAt: string;
-  _count?: {
-    attendees: number;
-  };
 }
 
 export interface Donation {
   id: string;
+  donationNumber: string;
   alumniId: string;
   amount: number;
   purpose: string;
-  date: string;
-  paymentMethod: 'cash' | 'card' | 'online' | 'cheque';
+  donationDate: string;
+  paymentMethod: 'cash' | 'cheque' | 'online' | 'bank_transfer';
   transactionId?: string;
-  receiptNumber: string;
+  receiptNumber?: string;
+  status: 'pending' | 'received' | 'acknowledged' | 'utilized';
   remarks?: string;
   createdAt: string;
   updatedAt: string;
   alumni?: {
     id: string;
-    student?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+export interface Mentorship {
+  id: string;
+  mentorId: string;
+  menteeId: string;
+  programName: string;
+  startDate: string;
+  endDate?: string;
+  status: 'active' | 'completed' | 'terminated';
+  meetings?: number;
+  outcomes?: string;
+  createdAt: string;
+  updatedAt: string;
+  mentor?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    currentCompany?: string;
+  };
+  mentee?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    program?: {
       id: string;
-      firstName: string;
-      lastName: string;
+      name: string;
     };
   };
 }
 
 export interface CreateAlumniDto {
-  studentId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
   graduationYear: number;
+  programId: string;
+  departmentId: string;
   currentCompany?: string;
   currentDesignation?: string;
   location?: string;
   linkedIn?: string;
-  email: string;
-  phone?: string;
   bio?: string;
   achievements?: string[];
 }
 
 export interface UpdateAlumniDto extends Partial<CreateAlumniDto> {
-  status?: 'active' | 'inactive';
+  status?: 'active' | 'inactive' | 'deceased';
 }
 
-export interface CreateAlumniEventDto {
+export interface CreateEventDto {
   title: string;
   description?: string;
-  date: string;
+  eventType: 'reunion' | 'networking' | 'seminar' | 'workshop' | 'fundraiser' | 'other';
+  eventDate: string;
   location?: string;
-  type: 'networking' | 'seminar' | 'workshop' | 'reunion' | 'mentorship';
   organizer?: string;
   maxAttendees?: number;
+  attachments?: string[];
 }
 
-export interface UpdateAlumniEventDto extends Partial<CreateAlumniEventDto> {
+export interface UpdateEventDto extends Partial<CreateEventDto> {
   status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  currentAttendees?: number;
 }
 
 export interface CreateDonationDto {
   alumniId: string;
   amount: number;
   purpose: string;
-  date: string;
-  paymentMethod: 'cash' | 'card' | 'online' | 'cheque';
+  donationDate: string;
+  paymentMethod: 'cash' | 'cheque' | 'online' | 'bank_transfer';
   transactionId?: string;
+  receiptNumber?: string;
   remarks?: string;
+}
+
+export interface UpdateDonationDto extends Partial<CreateDonationDto> {
+  status?: 'pending' | 'received' | 'acknowledged' | 'utilized';
+}
+
+export interface CreateMentorshipDto {
+  mentorId: string;
+  menteeId: string;
+  programName: string;
+  startDate: string;
+  endDate?: string;
+  meetings?: number;
+  outcomes?: string;
+}
+
+export interface UpdateMentorshipDto extends Partial<CreateMentorshipDto> {
+  status?: 'active' | 'completed' | 'terminated';
 }
 
 export const alumniKeys = {
@@ -118,6 +178,8 @@ export const alumniKeys = {
   event: (filters: any) => [...alumniKeys.events(), filters] as const,
   donations: () => [...alumniKeys.all, 'donations'] as const,
   donation: (filters: any) => [...alumniKeys.donations(), filters] as const,
+  mentorships: () => [...alumniKeys.all, 'mentorships'] as const,
+  mentorship: (filters: any) => [...alumniKeys.mentorships(), filters] as const,
 };
 
 export function useAlumniProfiles(filters?: any) {
@@ -161,6 +223,16 @@ export function useAlumniDonations(filters?: any) {
   });
 }
 
+export function useAlumniMentorships(filters?: any) {
+  return useQuery({
+    queryKey: alumniKeys.mentorship(filters),
+    queryFn: async () => {
+      const response = await apiClient.get('/alumni/mentorships', { params: filters });
+      return response.data.data as Mentorship[];
+    },
+  });
+}
+
 export function useCreateAlumniProfile() {
   const queryClient = useQueryClient();
 
@@ -174,7 +246,7 @@ export function useCreateAlumniProfile() {
       toast.success('Alumni profile created successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to create profile');
+      toast.error(error.response?.data?.message || 'Failed to create alumni profile');
     },
   });
 }
@@ -190,10 +262,27 @@ export function useUpdateAlumniProfile() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: alumniKeys.profiles() });
       queryClient.invalidateQueries({ queryKey: [...alumniKeys.profiles(), data.id] });
-      toast.success('Profile updated successfully');
+      toast.success('Alumni profile updated successfully');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to update profile');
+      toast.error(error.response?.data?.message || 'Failed to update alumni profile');
+    },
+  });
+}
+
+export function useDeleteAlumniProfile() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/alumni/profiles/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: alumniKeys.profiles() });
+      toast.success('Alumni profile deleted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete alumni profile');
     },
   });
 }
@@ -202,13 +291,13 @@ export function useCreateAlumniEvent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: CreateAlumniEventDto) => {
+    mutationFn: async (data: CreateEventDto) => {
       const response = await apiClient.post('/alumni/events', data);
       return response.data.data as AlumniEvent;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: alumniKeys.events() });
-      toast.success('Event created successfully');
+      toast.success('Alumni event created successfully');
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to create event');
@@ -216,7 +305,26 @@ export function useCreateAlumniEvent() {
   });
 }
 
-export function useRecordDonation() {
+export function useUpdateAlumniEvent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateEventDto }) => {
+      const response = await apiClient.patch(`/alumni/events/${id}`, data);
+      return response.data.data as AlumniEvent;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: alumniKeys.events() });
+      queryClient.invalidateQueries({ queryKey: [...alumniKeys.events(), data.id] });
+      toast.success('Event updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update event');
+    },
+  });
+}
+
+export function useCreateDonation() {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -230,6 +338,62 @@ export function useRecordDonation() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to record donation');
+    },
+  });
+}
+
+export function useUpdateDonation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateDonationDto }) => {
+      const response = await apiClient.patch(`/alumni/donations/${id}`, data);
+      return response.data.data as Donation;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: alumniKeys.donations() });
+      queryClient.invalidateQueries({ queryKey: [...alumniKeys.donations(), data.id] });
+      toast.success('Donation updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update donation');
+    },
+  });
+}
+
+export function useCreateMentorship() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CreateMentorshipDto) => {
+      const response = await apiClient.post('/alumni/mentorships', data);
+      return response.data.data as Mentorship;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: alumniKeys.mentorships() });
+      toast.success('Mentorship program created successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to create mentorship');
+    },
+  });
+}
+
+export function useUpdateMentorship() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateMentorshipDto }) => {
+      const response = await apiClient.patch(`/alumni/mentorships/${id}`, data);
+      return response.data.data as Mentorship;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: alumniKeys.mentorships() });
+      queryClient.invalidateQueries({ queryKey: [...alumniKeys.mentorships(), data.id] });
+      toast.success('Mentorship updated successfully');
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update mentorship');
     },
   });
 }

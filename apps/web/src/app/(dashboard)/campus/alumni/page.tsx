@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAlumniProfiles, useAlumniEvents, useAlumniDonations } from '@/services/alumni.service';
+import { useAlumniProfiles, useAlumniEvents, useAlumniDonations, useAlumniMentorships } from '@/services/alumni.service';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,52 +14,53 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Users, Calendar, IndianRupee } from 'lucide-react';
+import { MoreHorizontal, Pencil, Users, Calendar, IndianRupee, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 
-const eventStatusColors = {
-  upcoming: 'default',
-  ongoing: 'secondary',
+const statusColors = {
+  active: 'default',
+  inactive: 'secondary',
+  deceased: 'destructive',
+  upcoming: 'secondary',
+  ongoing: 'default',
   completed: 'outline',
   cancelled: 'destructive',
-} as const;
-
-const eventTypes = {
-  networking: 'Networking',
-  seminar: 'Seminar',
-  workshop: 'Workshop',
-  reunion: 'Reunion',
-  mentorship: 'Mentorship',
+  pending: 'secondary',
+  received: 'default',
+  acknowledged: 'outline',
+  utilized: 'outline',
+  terminated: 'destructive',
 } as const;
 
 export default function AlumniPage() {
-  const [tab, setTab] = useState<'profiles' | 'events' | 'donations'>('profiles');
+  const [tab, setTab] = useState<'profiles' | 'events' | 'donations' | 'mentorship'>('profiles');
   const [searchQuery, setSearchQuery] = useState('');
   const { data: profiles, isLoading: profilesLoading } = useAlumniProfiles();
   const { data: events, isLoading: eventsLoading } = useAlumniEvents();
   const { data: donations, isLoading: donationsLoading } = useAlumniDonations();
+  const { data: mentorships, isLoading: mentorshipsLoading } = useAlumniMentorships();
 
   const profileColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'alumniNumber',
+      header: 'Alumni No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('alumniNumber')}</Badge>,
+    },
     {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }) => {
         const alumni = row.original;
         return (
-          <div>
-            <Link
-              href={`/campus/alumni/${alumni.id}`}
-              className="font-medium hover:underline"
-            >
-              {alumni.student?.firstName} {alumni.student?.lastName}
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              {alumni.student?.rollNumber}
-            </p>
-          </div>
+          <Link
+            href={`/campus/alumni/${alumni.id}`}
+            className="font-medium hover:underline"
+          >
+            {alumni.firstName} {alumni.lastName}
+          </Link>
         );
       },
     },
@@ -68,8 +69,13 @@ export default function AlumniPage() {
       header: 'Graduation Year',
     },
     {
+      accessorKey: 'program',
+      header: 'Program',
+      cell: ({ row }) => row.original.program?.name || 'N/A',
+    },
+    {
       accessorKey: 'currentCompany',
-      header: 'Company',
+      header: 'Current Company',
       cell: ({ row }) => row.original.currentCompany || 'N/A',
     },
     {
@@ -78,17 +84,12 @@ export default function AlumniPage() {
       cell: ({ row }) => row.original.currentDesignation || 'N/A',
     },
     {
-      accessorKey: 'location',
-      header: 'Location',
-      cell: ({ row }) => row.original.location || 'N/A',
-    },
-    {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-        const status = row.getValue('status') as string;
+        const status = row.getValue('status') as keyof typeof statusColors;
         return (
-          <Badge variant={status === 'active' ? 'default' : 'secondary'}>
+          <Badge variant={statusColors[status] || 'default'}>
             {status}
           </Badge>
         );
@@ -110,7 +111,7 @@ export default function AlumniPage() {
               <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
                 <Link href={`/campus/alumni/${alumni.id}`}>
-                  View Profile
+                  View Details
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -143,17 +144,14 @@ export default function AlumniPage() {
       },
     },
     {
-      accessorKey: 'type',
+      accessorKey: 'eventType',
       header: 'Type',
-      cell: ({ row }) => {
-        const type = row.getValue('type') as keyof typeof eventTypes;
-        return <Badge variant="outline">{eventTypes[type]}</Badge>;
-      },
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('eventType')}</Badge>,
     },
     {
-      accessorKey: 'date',
-      header: 'Date',
-      cell: ({ row }) => format(new Date(row.original.date), 'MMM dd, yyyy'),
+      accessorKey: 'eventDate',
+      header: 'Event Date',
+      cell: ({ row }) => format(new Date(row.original.eventDate), 'MMM dd, yyyy'),
     },
     {
       accessorKey: 'location',
@@ -161,24 +159,52 @@ export default function AlumniPage() {
       cell: ({ row }) => row.original.location || 'N/A',
     },
     {
-      accessorKey: 'attendees',
-      header: () => (
-        <div className="flex items-center">
-          <Users className="mr-2 h-4 w-4" />
-          Attendees
-        </div>
-      ),
-      cell: ({ row }) => row.original._count?.attendees || 0,
+      accessorKey: 'currentAttendees',
+      header: 'Attendees',
+      cell: ({ row }) => {
+        const event = row.original;
+        return `${event.currentAttendees || 0}${event.maxAttendees ? `/${event.maxAttendees}` : ''}`;
+      },
     },
     {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-        const status = row.getValue('status') as keyof typeof eventStatusColors;
+        const status = row.getValue('status') as keyof typeof statusColors;
         return (
-          <Badge variant={eventStatusColors[status] || 'default'}>
+          <Badge variant={statusColors[status] || 'default'}>
             {status}
           </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const event = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/alumni/events/${event.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/alumni/events/${event.id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         );
       },
     },
@@ -186,17 +212,16 @@ export default function AlumniPage() {
 
   const donationColumns: ColumnDef<any>[] = [
     {
+      accessorKey: 'donationNumber',
+      header: 'Donation No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('donationNumber')}</Badge>,
+    },
+    {
       accessorKey: 'alumni',
       header: 'Alumni',
       cell: ({ row }) => {
-        const donation = row.original;
-        return (
-          <div>
-            <p className="font-medium">
-              {donation.alumni?.student?.firstName} {donation.alumni?.student?.lastName}
-            </p>
-          </div>
-        );
+        const alumni = row.original.alumni;
+        return alumni ? `${alumni.firstName} ${alumni.lastName}` : 'N/A';
       },
     },
     {
@@ -217,38 +242,170 @@ export default function AlumniPage() {
       header: 'Purpose',
     },
     {
-      accessorKey: 'date',
-      header: 'Date',
-      cell: ({ row }) => format(new Date(row.original.date), 'MMM dd, yyyy'),
+      accessorKey: 'donationDate',
+      header: 'Donation Date',
+      cell: ({ row }) => format(new Date(row.original.donationDate), 'MMM dd, yyyy'),
     },
     {
       accessorKey: 'paymentMethod',
       header: 'Payment Method',
-      cell: ({ row }) => <Badge variant="outline">{row.original.paymentMethod}</Badge>,
+      cell: ({ row }) => <Badge variant="secondary">{row.getValue('paymentMethod')}</Badge>,
     },
     {
-      accessorKey: 'receiptNumber',
-      header: 'Receipt No.',
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as keyof typeof statusColors;
+        return (
+          <Badge variant={statusColors[status] || 'default'}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const donation = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/alumni/donations/${donation.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
+  const mentorshipColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'programName',
+      header: 'Program Name',
+      cell: ({ row }) => {
+        const mentorship = row.original;
+        return (
+          <Link
+            href={`/campus/alumni/mentorship/${mentorship.id}`}
+            className="font-medium hover:underline"
+          >
+            {mentorship.programName}
+          </Link>
+        );
+      },
+    },
+    {
+      accessorKey: 'mentor',
+      header: 'Mentor',
+      cell: ({ row }) => {
+        const mentor = row.original.mentor;
+        return mentor ? (
+          <div>
+            <p className="font-medium">{mentor.firstName} {mentor.lastName}</p>
+            {mentor.currentCompany && (
+              <p className="text-sm text-muted-foreground">{mentor.currentCompany}</p>
+            )}
+          </div>
+        ) : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'mentee',
+      header: 'Mentee',
+      cell: ({ row }) => {
+        const mentee = row.original.mentee;
+        return mentee ? (
+          <div>
+            <p className="font-medium">{mentee.firstName} {mentee.lastName}</p>
+            {mentee.program && (
+              <p className="text-sm text-muted-foreground">{mentee.program.name}</p>
+            )}
+          </div>
+        ) : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'startDate',
+      header: 'Start Date',
+      cell: ({ row }) => format(new Date(row.original.startDate), 'MMM dd, yyyy'),
+    },
+    {
+      accessorKey: 'meetings',
+      header: 'Meetings',
+      cell: ({ row }) => row.original.meetings || 0,
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as keyof typeof statusColors;
+        return (
+          <Badge variant={statusColors[status] || 'default'}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const mentorship = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/alumni/mentorship/${mentorship.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 
   const filteredProfiles = profiles?.filter(
     (profile) =>
-      profile.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      profile.student?.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      `${profile.firstName} ${profile.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      profile.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       profile.currentCompany?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredEvents = events?.filter(
     (event) =>
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.type.toLowerCase().includes(searchQuery.toLowerCase())
+      event.eventType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredDonations = donations?.filter(
     (donation) =>
-      donation.alumni?.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      donation.purpose.toLowerCase().includes(searchQuery.toLowerCase())
+      donation.purpose.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      donation.alumni?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredMentorships = mentorships?.filter(
+    (mentorship) =>
+      mentorship.programName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      mentorship.mentor?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -256,7 +413,7 @@ export default function AlumniPage() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Alumni Management</h1>
         <p className="text-muted-foreground mt-1">
-          Manage alumni profiles, events, and donations
+          Manage alumni database, events, donations, and mentorship programs
         </p>
       </div>
 
@@ -265,6 +422,7 @@ export default function AlumniPage() {
           <TabsTrigger value="profiles">Profiles</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="donations">Donations</TabsTrigger>
+          <TabsTrigger value="mentorship">Mentorship</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -273,7 +431,7 @@ export default function AlumniPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Input
-                placeholder={tab === 'profiles' ? 'Search alumni...' : tab === 'events' ? 'Search events...' : 'Search donations...'}
+                placeholder={tab === 'profiles' ? 'Search alumni...' : tab === 'events' ? 'Search events...' : tab === 'donations' ? 'Search donations...' : 'Search mentorships...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -344,6 +502,28 @@ export default function AlumniPage() {
           <div className="mt-4 text-sm text-muted-foreground text-center">
             <IndianRupee className="inline h-4 w-4 mr-1" />
             Total: {filteredDonations?.length || 0} donations
+          </div>
+        </>
+      )}
+
+      {tab === 'mentorship' && (
+        <>
+          <div className="mb-4 flex justify-end">
+            <Button asChild>
+              <Link href="/campus/alumni/mentorship/new">
+                <UserCheck className="mr-2 h-4 w-4" />
+                Create Mentorship
+              </Link>
+            </Button>
+          </div>
+          <DataTable
+            columns={mentorshipColumns}
+            data={filteredMentorships || []}
+            isLoading={mentorshipsLoading}
+          />
+          <div className="mt-4 text-sm text-muted-foreground text-center">
+            <UserCheck className="inline h-4 w-4 mr-1" />
+            Total: {filteredMentorships?.length || 0} mentorships
           </div>
         </>
       )}

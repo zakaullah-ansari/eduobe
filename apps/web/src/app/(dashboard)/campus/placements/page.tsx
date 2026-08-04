@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCompanies, usePlacementDrives, useDeleteCompany } from '@/services/placement.service';
+import { useCompanies, usePlacementDrives, useApplications } from '@/services/placement.service';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,12 +12,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Building2, Briefcase, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Building2, Calendar, FileText, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import { ColumnDef } from '@tanstack/react-table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
@@ -26,29 +24,25 @@ const statusColors = {
   active: 'default',
   inactive: 'secondary',
   blacklisted: 'destructive',
-} as const;
-
-const driveStatusColors = {
-  scheduled: 'default',
-  ongoing: 'secondary',
+  scheduled: 'secondary',
+  ongoing: 'default',
   completed: 'outline',
   cancelled: 'destructive',
+  applied: 'secondary',
+  shortlisted: 'default',
+  rejected: 'destructive',
+  selected: 'default',
+  offered: 'default',
+  joined: 'outline',
+  declined: 'destructive',
 } as const;
 
 export default function PlacementsPage() {
-  const [tab, setTab] = useState<'companies' | 'drives'>('companies');
+  const [tab, setTab] = useState<'companies' | 'drives' | 'applications'>('companies');
   const [searchQuery, setSearchQuery] = useState('');
   const { data: companies, isLoading: companiesLoading } = useCompanies();
   const { data: drives, isLoading: drivesLoading } = usePlacementDrives();
-  const deleteMutation = useDeleteCompany();
-
-  const handleDelete = (id: string) => {
-    if (!confirm('Are you sure you want to delete this company?')) {
-      return;
-    }
-
-    deleteMutation.mutate(id);
-  };
+  const { data: applications, isLoading: applicationsLoading } = useApplications();
 
   const companyColumns: ColumnDef<any>[] = [
     {
@@ -69,6 +63,7 @@ export default function PlacementsPage() {
     {
       accessorKey: 'industry',
       header: 'Industry',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('industry')}</Badge>,
     },
     {
       accessorKey: 'location',
@@ -76,24 +71,29 @@ export default function PlacementsPage() {
       cell: ({ row }) => row.original.location || 'N/A',
     },
     {
-      accessorKey: 'package',
-      header: () => (
-        <div className="flex items-center">
-          <Briefcase className="mr-2 h-4 w-4" />
-          Package
-        </div>
-      ),
-      cell: ({ row }) => row.original.package || 'N/A',
+      accessorKey: 'contactPerson',
+      header: 'Contact Person',
+      cell: ({ row }) => row.original.contactPerson || 'N/A',
     },
     {
       accessorKey: 'drives',
       header: () => (
         <div className="flex items-center">
-          <Users className="mr-2 h-4 w-4" />
+          <Calendar className="mr-2 h-4 w-4" />
           Drives
         </div>
       ),
       cell: ({ row }) => row.original._count?.drives || 0,
+    },
+    {
+      accessorKey: 'offers',
+      header: () => (
+        <div className="flex items-center">
+          <FileText className="mr-2 h-4 w-4" />
+          Offers
+        </div>
+      ),
+      cell: ({ row }) => row.original._count?.offers || 0,
     },
     {
       accessorKey: 'status',
@@ -132,14 +132,6 @@ export default function PlacementsPage() {
                   Edit
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={() => handleDelete(company.id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         );
@@ -149,49 +141,58 @@ export default function PlacementsPage() {
 
   const driveColumns: ColumnDef<any>[] = [
     {
+      accessorKey: 'driveNumber',
+      header: 'Drive No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('driveNumber')}</Badge>,
+    },
+    {
       accessorKey: 'title',
       header: 'Drive Title',
       cell: ({ row }) => {
         const drive = row.original;
         return (
-          <div>
-            <Link
-              href={`/campus/placements/drives/${drive.id}`}
-              className="font-medium hover:underline"
-            >
-              {drive.title}
-            </Link>
-            <p className="text-sm text-muted-foreground">
-              {drive.company?.name}
-            </p>
-          </div>
+          <Link
+            href={`/campus/placements/drives/${drive.id}`}
+            className="font-medium hover:underline"
+          >
+            {drive.title}
+          </Link>
         );
       },
     },
     {
-      accessorKey: 'date',
-      header: 'Date',
-      cell: ({ row }) => format(new Date(row.original.date), 'MMM dd, yyyy'),
+      accessorKey: 'company',
+      header: 'Company',
+      cell: ({ row }) => row.original.company?.name || 'N/A',
     },
     {
-      accessorKey: 'location',
-      header: 'Location',
-      cell: ({ row }) => row.original.location || 'N/A',
+      accessorKey: 'driveDate',
+      header: 'Drive Date',
+      cell: ({ row }) => format(new Date(row.original.driveDate), 'MMM dd, yyyy'),
     },
     {
-      accessorKey: 'package',
-      header: 'Package',
-      cell: ({ row }) => row.original.package || 'N/A',
+      accessorKey: 'driveType',
+      header: 'Type',
+      cell: ({ row }) => <Badge variant="secondary">{row.getValue('driveType')}</Badge>,
     },
     {
-      accessorKey: 'positions',
-      header: 'Positions',
+      accessorKey: 'packageOffered',
+      header: () => (
+        <div className="flex items-center">
+          <IndianRupee className="mr-2 h-4 w-4" />
+          Package (LPA)
+        </div>
+      ),
+      cell: ({ row }) => {
+        const pkg = row.original.packageOffered;
+        return pkg ? `₹${(pkg / 100000).toFixed(2)} LPA` : 'N/A';
+      },
     },
     {
       accessorKey: 'applications',
       header: () => (
         <div className="flex items-center">
-          <Users className="mr-2 h-4 w-4" />
+          <FileText className="mr-2 h-4 w-4" />
           Applications
         </div>
       ),
@@ -201,9 +202,9 @@ export default function PlacementsPage() {
       accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-        const status = row.getValue('status') as keyof typeof driveStatusColors;
+        const status = row.getValue('status') as keyof typeof statusColors;
         return (
-          <Badge variant={driveStatusColors[status] || 'default'}>
+          <Badge variant={statusColors[status] || 'default'}>
             {status}
           </Badge>
         );
@@ -241,6 +242,94 @@ export default function PlacementsPage() {
     },
   ];
 
+  const applicationColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: 'applicationNumber',
+      header: 'Application No.',
+      cell: ({ row }) => <Badge variant="outline">{row.getValue('applicationNumber')}</Badge>,
+    },
+    {
+      accessorKey: 'student',
+      header: 'Student',
+      cell: ({ row }) => {
+        const student = row.original.student;
+        return student ? (
+          <div>
+            <p className="font-medium">{student.firstName} {student.lastName}</p>
+            <p className="text-sm text-muted-foreground">{student.rollNumber}</p>
+          </div>
+        ) : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'drive',
+      header: 'Drive',
+      cell: ({ row }) => {
+        const drive = row.original.drive;
+        return drive ? (
+          <div>
+            <p className="font-medium">{drive.title}</p>
+            <p className="text-sm text-muted-foreground">{drive.company?.name}</p>
+          </div>
+        ) : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'appliedDate',
+      header: 'Applied Date',
+      cell: ({ row }) => format(new Date(row.original.appliedDate), 'MMM dd, yyyy'),
+    },
+    {
+      accessorKey: 'offeredPackage',
+      header: () => (
+        <div className="flex items-center">
+          <IndianRupee className="mr-2 h-4 w-4" />
+          Offered Package
+        </div>
+      ),
+      cell: ({ row }) => {
+        const pkg = row.original.offeredPackage;
+        return pkg ? `₹${(pkg / 100000).toFixed(2)} LPA` : 'N/A';
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const status = row.getValue('status') as keyof typeof statusColors;
+        return (
+          <Badge variant={statusColors[status] || 'default'}>
+            {status}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const application = row.original;
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href={`/campus/placements/applications/${application.id}`}>
+                  View Details
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
   const filteredCompanies = companies?.filter(
     (company) =>
       company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -251,6 +340,12 @@ export default function PlacementsPage() {
     (drive) =>
       drive.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       drive.company?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredApplications = applications?.filter(
+    (application) =>
+      application.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      application.drive?.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -265,7 +360,8 @@ export default function PlacementsPage() {
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6">
         <TabsList>
           <TabsTrigger value="companies">Companies</TabsTrigger>
-          <TabsTrigger value="drives">Placement Drives</TabsTrigger>
+          <TabsTrigger value="drives">Drives</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -274,7 +370,7 @@ export default function PlacementsPage() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Input
-                placeholder={tab === 'companies' ? 'Search companies...' : 'Search drives...'}
+                placeholder={tab === 'companies' ? 'Search companies...' : tab === 'drives' ? 'Search drives...' : 'Search applications...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -310,7 +406,7 @@ export default function PlacementsPage() {
           <div className="mb-4 flex justify-end">
             <Button asChild>
               <Link href="/campus/placements/drives/new">
-                <Briefcase className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4" />
                 Schedule Drive
               </Link>
             </Button>
@@ -321,8 +417,30 @@ export default function PlacementsPage() {
             isLoading={drivesLoading}
           />
           <div className="mt-4 text-sm text-muted-foreground text-center">
-            <Briefcase className="inline h-4 w-4 mr-1" />
+            <Calendar className="inline h-4 w-4 mr-1" />
             Total: {filteredDrives?.length || 0} drives
+          </div>
+        </>
+      )}
+
+      {tab === 'applications' && (
+        <>
+          <div className="mb-4 flex justify-end">
+            <Button asChild>
+              <Link href="/campus/placements/applications/new">
+                <FileText className="mr-2 h-4 w-4" />
+                Submit Application
+              </Link>
+            </Button>
+          </div>
+          <DataTable
+            columns={applicationColumns}
+            data={filteredApplications || []}
+            isLoading={applicationsLoading}
+          />
+          <div className="mt-4 text-sm text-muted-foreground text-center">
+            <FileText className="inline h-4 w-4 mr-1" />
+            Total: {filteredApplications?.length || 0} applications
           </div>
         </>
       )}

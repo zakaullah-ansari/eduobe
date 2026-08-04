@@ -7,37 +7,40 @@ export interface Company {
   name: string;
   industry: string;
   website?: string;
-  description?: string;
-  logo?: string;
   location?: string;
-  package?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  description?: string;
   status: 'active' | 'inactive' | 'blacklisted';
   createdAt: string;
   updatedAt: string;
   _count?: {
     drives: number;
-    applications: number;
+    offers: number;
   };
 }
 
 export interface PlacementDrive {
   id: string;
+  driveNumber: string;
   companyId: string;
   title: string;
   description?: string;
-  date: string;
-  location?: string;
+  driveDate: string;
+  driveType: 'campus' | 'virtual' | 'off_campus';
   eligibility?: string;
-  package?: string;
-  positions: number;
+  packageOffered?: number;
+  positionsAvailable?: number;
   status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+  venue?: string;
+  attachments?: string[];
   createdAt: string;
   updatedAt: string;
   company?: {
     id: string;
     name: string;
     industry: string;
-    logo?: string;
   };
   _count?: {
     applications: number;
@@ -47,22 +50,28 @@ export interface PlacementDrive {
 
 export interface Application {
   id: string;
+  applicationNumber: string;
   studentId: string;
   driveId: string;
-  status: 'applied' | 'shortlisted' | 'rejected' | 'selected' | 'offered' | 'joined';
   appliedDate: string;
+  status: 'applied' | 'shortlisted' | 'rejected' | 'selected' | 'offered' | 'joined' | 'declined';
   resumeUrl?: string;
-  offerLetterUrl?: string;
-  package?: string;
+  interviewDate?: string;
+  interviewFeedback?: string;
+  offeredPackage?: number;
+  joiningDate?: string;
   remarks?: string;
   createdAt: string;
   updatedAt: string;
   student?: {
     id: string;
-    rollNumber: string;
     firstName: string;
     lastName: string;
-    email: string;
+    rollNumber: string;
+    program?: {
+      id: string;
+      name: string;
+    };
   };
   drive?: {
     id: string;
@@ -78,10 +87,11 @@ export interface CreateCompanyDto {
   name: string;
   industry: string;
   website?: string;
-  description?: string;
-  logo?: string;
   location?: string;
-  package?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  description?: string;
 }
 
 export interface UpdateCompanyDto extends Partial<CreateCompanyDto> {
@@ -92,27 +102,32 @@ export interface CreateDriveDto {
   companyId: string;
   title: string;
   description?: string;
-  date: string;
-  location?: string;
+  driveDate: string;
+  driveType: 'campus' | 'virtual' | 'off_campus';
   eligibility?: string;
-  package?: string;
-  positions: number;
+  packageOffered?: number;
+  positionsAvailable?: number;
+  venue?: string;
+  attachments?: string[];
 }
 
 export interface UpdateDriveDto extends Partial<CreateDriveDto> {
   status?: 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
 }
 
-export interface ApplyToDriveDto {
+export interface CreateApplicationDto {
+  studentId: string;
   driveId: string;
-  resumeUrl: string;
+  resumeUrl?: string;
+  remarks?: string;
 }
 
-export interface UpdateApplicationDto {
-  status?: 'applied' | 'shortlisted' | 'rejected' | 'selected' | 'offered' | 'joined';
-  offerLetterUrl?: string;
-  package?: string;
-  remarks?: string;
+export interface UpdateApplicationDto extends Partial<CreateApplicationDto> {
+  status?: 'applied' | 'shortlisted' | 'rejected' | 'selected' | 'offered' | 'joined' | 'declined';
+  interviewDate?: string;
+  interviewFeedback?: string;
+  offeredPackage?: number;
+  joiningDate?: string;
 }
 
 export const placementKeys = {
@@ -268,11 +283,11 @@ export function useUpdateDrive() {
   });
 }
 
-export function useApplyToDrive() {
+export function useCreateApplication() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: ApplyToDriveDto) => {
+    mutationFn: async (data: CreateApplicationDto) => {
       const response = await apiClient.post('/placements/applications', data);
       return response.data.data as Application;
     },
