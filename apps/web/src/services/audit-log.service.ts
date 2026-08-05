@@ -1,28 +1,27 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { toast } from 'sonner';
 
 export interface AuditLog {
   id: string;
-  userId?: string;
-  action: string;
-  entity: string;
+  logNumber: string;
+  userId: string;
+  action: 'create' | 'update' | 'delete' | 'login' | 'logout' | 'export' | 'import';
+  entityType: string;
   entityId: string;
-  changes?: any;
+  description: string;
+  changes?: { field: string; oldValue: any; newValue: any }[];
   ipAddress?: string;
   userAgent?: string;
   timestamp: string;
-  user?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-  };
+  createdAt: string;
+  user?: { id: string; firstName: string; lastName: string; email: string; role?: string };
 }
 
-export interface AuditLogFilters {
+export interface AuditLogFilter {
   userId?: string;
   action?: string;
-  entity?: string;
+  entityType?: string;
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -30,13 +29,14 @@ export interface AuditLogFilters {
 
 export const auditLogKeys = {
   all: ['audit-logs'] as const,
-  lists: () => [...auditLogKeys.all, 'list'] as const,
-  list: (filters: any) => [...auditLogKeys.lists(), filters] as const,
+  logs: () => [...auditLogKeys.all, 'logs'] as const,
+  log: (filters: any) => [...auditLogKeys.logs(), filters] as const,
+  detail: (id: string) => [...auditLogKeys.all, 'detail', id] as const,
 };
 
-export function useAuditLogs(filters?: AuditLogFilters) {
+export function useAuditLogs(filters?: AuditLogFilter) {
   return useQuery({
-    queryKey: auditLogKeys.list(filters),
+    queryKey: auditLogKeys.log(filters),
     queryFn: async () => {
       const response = await apiClient.get('/audit-logs', { params: filters });
       return response.data.data as AuditLog[];
@@ -44,8 +44,19 @@ export function useAuditLogs(filters?: AuditLogFilters) {
   });
 }
 
+export function useAuditLog(id: string) {
+  return useQuery({
+    queryKey: auditLogKeys.detail(id),
+    queryFn: async () => {
+      const response = await apiClient.get(`/audit-logs/${id}`);
+      return response.data.data as AuditLog;
+    },
+    enabled: !!id,
+  });
+}
+
 export function useExportAuditLogs() {
-  return async (filters?: AuditLogFilters) => {
+  return async (filters?: AuditLogFilter) => {
     const response = await apiClient.get('/audit-logs/export', {
       params: filters,
       responseType: 'blob',
@@ -60,4 +71,22 @@ export function useExportAuditLogs() {
     link.remove();
     window.URL.revokeObjectURL(url);
   };
+}
+
+export function useCleanupAuditLogs() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (daysToKeep: number) => {
+      const response = await apiClient.post('/audit-logs/cleanup', { daysToKeep });
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: auditLogKeys.logs() });
+      toast.success(`Cleaned up ${data.deletedCount} old audit logs`);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to cleanup audit logs');
+    },
+  });
 }

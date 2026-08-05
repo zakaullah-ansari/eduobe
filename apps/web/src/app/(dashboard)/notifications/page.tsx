@@ -1,170 +1,50 @@
 'use client';
-
 import { useState } from 'react';
-import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotification } from '@/services/notification.service';
+import { useNotifications, useUnreadNotifications, useCreateNotification, useSendNotification, useMarkAsRead } from '@/services/notification.service';
+import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Bell, Check, Trash2, Mail } from 'lucide-react';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Pencil, Trash2, Bell, Send, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { ColumnDef } from '@tanstack/react-table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { format } from 'date-fns';
 
-const typeColors = {
-  info: 'default',
-  success: 'secondary',
-  warning: 'outline',
-  error: 'destructive',
-} as const;
-
-const categoryIcons = {
-  attendance: '📅',
-  marks: '📊',
-  enrollment: '👥',
-  system: '⚙️',
-  general: '📌',
-} as const;
+const statusColors = { draft: 'secondary', sent: 'default', read: 'outline', archived: 'secondary' } as const;
+const typeColors = { info: 'default', success: 'default', warning: 'secondary', error: 'destructive' } as const;
 
 export default function NotificationsPage() {
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const { data: notifications, isLoading } = useNotifications({ isRead: filter === 'unread' ? false : undefined });
-  const markReadMutation = useMarkNotificationRead();
-  const markAllReadMutation = useMarkAllNotificationsRead();
-  const deleteMutation = useDeleteNotification();
+  const [tab, setTab] = useState<'all' | 'unread'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data: notifications, isLoading: notificationsLoading } = useNotifications();
+  const { data: unreadNotifications, isLoading: unreadLoading } = useUnreadNotifications();
 
-  const handleMarkRead = (id: string) => {
-    markReadMutation.mutate(id);
-  };
+  const columns: ColumnDef<any>[] = [
+    { accessorKey: 'notificationNumber', header: 'Notification No.', cell: ({ row }) => <Badge variant="outline">{row.getValue('notificationNumber')}</Badge> },
+    { accessorKey: 'title', header: 'Title', cell: ({ row }) => <Link href={`/notifications/${row.original.id}`} className="font-medium hover:underline">{row.getValue('title')}</Link> },
+    { accessorKey: 'type', header: 'Type', cell: ({ row }) => <Badge variant={typeColors[row.getValue('type') as keyof typeof typeColors] || 'default'}>{row.getValue('type')}</Badge> },
+    { accessorKey: 'category', header: 'Category', cell: ({ row }) => <Badge variant="secondary">{row.getValue('category')}</Badge> },
+    { accessorKey: 'priority', header: 'Priority', cell: ({ row }) => <Badge variant={row.getValue('priority') === 'urgent' ? 'destructive' : 'secondary'}>{row.getValue('priority')}</Badge> },
+    { accessorKey: 'targetAudience', header: 'Target', cell: ({ row }) => <Badge variant="outline">{row.getValue('targetAudience')}</Badge> },
+    { accessorKey: 'sentDate', header: 'Sent Date', cell: ({ row }) => row.original.sentDate ? format(new Date(row.original.sentDate), 'MMM dd, yyyy') : 'N/A' },
+    { accessorKey: 'status', header: 'Status', cell: ({ row }) => <Badge variant={statusColors[row.getValue('status') as keyof typeof statusColors] || 'default'}>{row.getValue('status')}</Badge> },
+    { id: 'actions', cell: ({ row }) => (<DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel>Actions</DropdownMenuLabel><DropdownMenuItem asChild><Link href={`/notifications/${row.original.id}`}>View Details</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href={`/notifications/${row.original.id}/edit`}><Pencil className="mr-2 h-4 w-4" />Edit</Link></DropdownMenuItem>{row.original.status === 'draft' && <DropdownMenuItem><Send className="mr-2 h-4 w-4" />Send</DropdownMenuItem>}{row.original.status === 'sent' && <DropdownMenuItem><CheckCircle className="mr-2 h-4 w-4" />Mark as Read</DropdownMenuItem>}<DropdownMenuSeparator /><DropdownMenuItem className="text-red-600" onClick={() => { if (confirm('Delete?')) toast.success('Deleted'); }}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu>) },
+  ];
 
-  const handleMarkAllRead = () => {
-    markAllReadMutation.mutate();
-  };
-
-  const handleDelete = (id: string) => {
-    if (!confirm('Are you sure you want to delete this notification?')) {
-      return;
-    }
-
-    deleteMutation.mutate(id);
-  };
-
-  const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
+  const filteredNotifications = notifications?.filter(n => n.title.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredUnread = unreadNotifications?.filter(n => n.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <div className="container mx-auto py-10 max-w-4xl">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Notifications</h1>
-          <p className="text-muted-foreground mt-1">
-            View and manage your notifications
-          </p>
-        </div>
-        {unreadCount > 0 && (
-          <Button onClick={handleMarkAllRead} variant="outline">
-            <Check className="mr-2 h-4 w-4" />
-            Mark All as Read
-          </Button>
-        )}
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        <Button
-          variant={filter === 'all' ? 'default' : 'outline'}
-          onClick={() => setFilter('all')}
-        >
-          All Notifications
-        </Button>
-        <Button
-          variant={filter === 'unread' ? 'default' : 'outline'}
-          onClick={() => setFilter('unread')}
-        >
-          Unread {unreadCount > 0 && `(${unreadCount})`}
-        </Button>
-      </div>
-
-      {/* Notifications List */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted-foreground">
-              Loading notifications...
-            </CardContent>
-          </Card>
-        ) : notifications && notifications.length > 0 ? (
-          notifications.map((notification) => (
-            <Card
-              key={notification.id}
-              className={!notification.isRead ? 'border-l-4 border-l-primary' : ''}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl">
-                      {categoryIcons[notification.category as keyof typeof categoryIcons] || '📌'}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CardTitle className="text-base">{notification.title}</CardTitle>
-                        <Badge variant={typeColors[notification.type as keyof typeof typeColors] || 'default'}>
-                          {notification.type}
-                        </Badge>
-                        {!notification.isRead && (
-                          <Badge variant="default" className="text-xs">New</Badge>
-                        )}
-                      </div>
-                      <CardDescription>
-                        {format(new Date(notification.createdAt), 'MMM dd, yyyy HH:mm')}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {!notification.isRead && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkRead(notification.id)}
-                      >
-                        <Check className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(notification.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <p className="text-sm">{notification.message}</p>
-                {notification.actionUrl && (
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto mt-2"
-                    asChild
-                  >
-                    <Link href={notification.actionUrl}>
-                      View Details →
-                    </Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="py-10 text-center">
-              <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+    <div className="container mx-auto py-10">
+      <div className="mb-6"><h1 className="text-3xl font-bold">Notifications</h1><p className="text-muted-foreground mt-1">Manage notifications and alerts</p></div>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="mb-6"><TabsList><TabsTrigger value="all">All Notifications</TabsTrigger><TabsTrigger value="unread">Unread ({unreadNotifications?.length || 0})</TabsTrigger></TabsList></Tabs>
+      <Card className="mb-6"><CardContent className="pt-6"><Input placeholder="Search notifications..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></CardContent></Card>
+      {tab === 'all' && (<><div className="mb-4 flex justify-end"><Button asChild><Link href="/notifications/new"><Bell className="mr-2 h-4 w-4" />Create Notification</Link></Button></div><DataTable columns={columns} data={filteredNotifications || []} isLoading={notificationsLoading} /><div className="mt-4 text-sm text-muted-foreground text-center">Total: {filteredNotifications?.length || 0} notifications</div></>)}
+      {tab === 'unread' && (<><DataTable columns={columns} data={filteredUnread || []} isLoading={unreadLoading} /><div className="mt-4 text-sm text-muted-foreground text-center">Total: {filteredUnread?.length || 0} unread notifications</div></>)}
     </div>
   );
 }

@@ -1,78 +1,82 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-export interface AttendanceAnalytics {
-  courseOfferingId: string;
-  courseName: string;
-  totalClasses: number;
-  averageAttendance: number;
-  studentsAbove75: number;
-  studentsBelow75: number;
-  trend: Array<{
-    date: string;
-    percentage: number;
-  }>;
-}
-
-export interface MarksAnalytics {
-  courseOfferingId: string;
-  courseName: string;
-  averageMarks: number;
-  highestMarks: number;
-  lowestMarks: number;
-  passPercentage: number;
-  gradeDistribution: Array<{
-    grade: string;
-    count: number;
-    percentage: number;
-  }>;
-}
-
-export interface EnrollmentAnalytics {
-  batchId: string;
-  batchName: string;
-  totalStudents: number;
-  activeEnrollments: number;
-  droppedStudents: number;
-  courseWise: Array<{
-    courseName: string;
-    enrolled: number;
-  }>;
-}
-
-export interface DepartmentAnalytics {
-  departmentId: string;
-  departmentName: string;
-  totalStudents: number;
-  totalFaculty: number;
-  totalCourses: number;
-  averageAttendance: number;
-  averageMarks: number;
-}
-
 export interface DashboardStats {
   totalStudents: number;
   totalFaculty: number;
   totalCourses: number;
-  totalBatches: number;
-  activeEnrollments: number;
+  totalDepartments: number;
+  totalPrograms: number;
   averageAttendance: number;
-  averageMarks: number;
-  recentActivities: Array<{
-    action: string;
-    entity: string;
-    timestamp: string;
-    user: string;
-  }>;
+  averageCGPA: number;
+  placementRate: number;
+  researchPublications: number;
+  totalScholarships: number;
+  totalAlumni: number;
+  activeEvents: number;
+}
+
+export interface AttendanceAnalytics {
+  department: string;
+  averageAttendance: number;
+  totalStudents: number;
+  presentCount: number;
+  absentCount: number;
+  trend: { month: string; percentage: number }[];
+}
+
+export interface AcademicPerformance {
+  department: string;
+  averageCGPA: number;
+  highestCGPA: number;
+  lowestCGPA: number;
+  passPercentage: number;
+  topStudents: { name: string; cgpa: number; rollNumber: string }[];
+}
+
+export interface PlacementAnalytics {
+  department: string;
+  totalStudents: number;
+  placedStudents: number;
+  placementRate: number;
+  averagePackage: number;
+  highestPackage: number;
+  topCompanies: { name: string; count: number }[];
+}
+
+export interface ResearchAnalytics {
+  department: string;
+  totalPublications: number;
+  totalPatents: number;
+  totalGrants: number;
+  totalAmount: number;
+  topResearchers: { name: string; publications: number }[];
+}
+
+export interface FinancialAnalytics {
+  month: string;
+  totalFees: number;
+  totalScholarships: number;
+  totalHostelFees: number;
+  totalTransportFees: number;
+  totalLibraryFines: number;
+}
+
+export interface TrendData {
+  month: string;
+  value: number;
+  label: string;
 }
 
 export const analyticsKeys = {
   all: ['analytics'] as const,
   dashboard: () => [...analyticsKeys.all, 'dashboard'] as const,
   attendance: (filters: any) => [...analyticsKeys.all, 'attendance', filters] as const,
-  marks: (filters: any) => [...analyticsKeys.all, 'marks', filters] as const,
-  enrollment: (filters: any) => [...analyticsKeys.all, 'enrollment', filters] as const,
-  department: (filters: any) => [...analyticsKeys.all, 'department', filters] as const,
+  performance: (filters: any) => [...analyticsKeys.all, 'performance', filters] as const,
+  placement: (filters: any) => [...analyticsKeys.all, 'placement', filters] as const,
+  research: (filters: any) => [...analyticsKeys.all, 'research', filters] as const,
+  financial: (filters: any) => [...analyticsKeys.all, 'financial', filters] as const,
+  trends: (type: string) => [...analyticsKeys.all, 'trends', type] as const,
 };
 
 export function useDashboardStats() {
@@ -92,38 +96,73 @@ export function useAttendanceAnalytics(filters?: any) {
       const response = await apiClient.get('/analytics/attendance', { params: filters });
       return response.data.data as AttendanceAnalytics[];
     },
-    enabled: !!filters?.courseOfferingId || !!filters?.batchId,
   });
 }
 
-export function useMarksAnalytics(filters?: any) {
+export function useAcademicPerformance(filters?: any) {
   return useQuery({
-    queryKey: analyticsKeys.marks(filters),
+    queryKey: analyticsKeys.performance(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/analytics/marks', { params: filters });
-      return response.data.data as MarksAnalytics[];
+      const response = await apiClient.get('/analytics/performance', { params: filters });
+      return response.data.data as AcademicPerformance[];
     },
-    enabled: !!filters?.courseOfferingId || !!filters?.batchId,
   });
 }
 
-export function useEnrollmentAnalytics(filters?: any) {
+export function usePlacementAnalytics(filters?: any) {
   return useQuery({
-    queryKey: analyticsKeys.enrollment(filters),
+    queryKey: analyticsKeys.placement(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/analytics/enrollment', { params: filters });
-      return response.data.data as EnrollmentAnalytics[];
+      const response = await apiClient.get('/analytics/placement', { params: filters });
+      return response.data.data as PlacementAnalytics[];
     },
-    enabled: !!filters?.batchId || !!filters?.departmentId,
   });
 }
 
-export function useDepartmentAnalytics(filters?: any) {
+export function useResearchAnalytics(filters?: any) {
   return useQuery({
-    queryKey: analyticsKeys.department(filters),
+    queryKey: analyticsKeys.research(filters),
     queryFn: async () => {
-      const response = await apiClient.get('/analytics/department', { params: filters });
-      return response.data.data as DepartmentAnalytics[];
+      const response = await apiClient.get('/analytics/research', { params: filters });
+      return response.data.data as ResearchAnalytics[];
     },
   });
+}
+
+export function useFinancialAnalytics(filters?: any) {
+  return useQuery({
+    queryKey: analyticsKeys.financial(filters),
+    queryFn: async () => {
+      const response = await apiClient.get('/analytics/financial', { params: filters });
+      return response.data.data as FinancialAnalytics[];
+    },
+  });
+}
+
+export function useTrendData(type: string) {
+  return useQuery({
+    queryKey: analyticsKeys.trends(type),
+    queryFn: async () => {
+      const response = await apiClient.get(`/analytics/trends/${type}`);
+      return response.data.data as TrendData[];
+    },
+  });
+}
+
+export function useExportAnalytics() {
+  return async (type: string, filters?: any) => {
+    const response = await apiClient.get(`/analytics/export/${type}`, {
+      params: filters,
+      responseType: 'blob',
+    });
+    
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${type}-analytics-${Date.now()}.xlsx`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  };
 }
