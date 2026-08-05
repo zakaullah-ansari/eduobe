@@ -1,0 +1,1708 @@
+// Prisma Schema for EduOBE v2.0
+// Outcome-Based Education & NBA Accreditation Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// TENANT
+// ============================================================================
+
+model Tenant {
+  id           String       @id @default(cuid())
+  name         String
+  subdomain    String       @unique
+  logo         String?
+  primaryColor String       @default("#2563eb")
+  plan         TenantPlan   @default(free)
+  status       TenantStatus @default(active)
+  config       Json         @default("{}")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  users              User[]
+  roles              Role[]
+  departments        Department[]
+  programs           Program[]
+  curricula          Curriculum[]
+  academicYears      AcademicYear[]
+  courseTypes        CourseType[]
+  courses            Course[]
+  batches            Batch[]
+  sections           Section[]
+  labBatches         LabBatch[]
+  students           Student[]
+  faculty            Faculty[]
+  courseOfferings    CourseOffering[]
+  courseEnrollments  CourseEnrollment[]
+  courseOutcomes     CourseOutcome[]
+  programOutcomes    ProgramOutcome[]
+  programSpecificOutcomes ProgramSpecificOutcome[]
+  coPOMappings       COPOMapping[]
+  coPSOMappings      COPPSOMapping[]
+  attendanceSessions AttendanceSession[]
+  attendanceRecords  AttendanceRecord[]
+  teachingPlans      TeachingPlan[]
+  practicalPlans     PracticalPlan[]
+  assessmentTypes    AssessmentType[]
+  assessments        Assessment[]
+  questionBanks      QuestionBank[]
+  questionPapers     QuestionPaper[]
+  marks              Marks[]
+  attainmentConfigs  AttainmentConfig[]
+  coAttainments      COAttainment[]
+  poAttainments      POAttainment[]
+  psoAttainments     PSOAttainment[]
+  slowLearners       SlowLearner[]
+  remedialSessions   RemedialSession[]
+  advancedLearners   AdvancedLearner[]
+  contentBeyondSyllabus ContentBeyondSyllabus[]
+  surveys            Survey[]
+  surveyResponses    SurveyResponse[]
+  documents          Document[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  academicCalendars  AcademicCalendar[]
+
+  @@map("tenants")
+}
+
+enum TenantPlan {
+  free
+  starter
+  professional
+  enterprise
+}
+
+enum TenantStatus {
+  active
+  suspended
+  trial
+}
+
+// ============================================================================
+// USER & AUTH
+// ============================================================================
+
+model User {
+  id               String     @id @default(cuid())
+  tenantId         String
+  email            String
+  passwordHash     String
+  firstName        String
+  lastName         String
+  phone            String?
+  avatar           String?
+  status           UserStatus @default(active)
+  emailVerified    Boolean    @default(false)
+  twoFactorEnabled Boolean    @default(false)
+  twoFactorSecret  String?
+  lastLoginAt      DateTime?
+  loginCount       Int        @default(0)
+  metadata         Json?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Relations
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles UserRole[]
+  refreshTokens RefreshToken[]
+  student   Student?
+  faculty   Faculty?
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  code        String
+  description String?
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  // Relations
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([tenantId, code])
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  resource    String
+  action      String
+  scope       String
+  description String
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action, scope])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  // Relations
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  scopeType String?
+  scopeId   String?
+  assignedAt DateTime @default(now())
+  assignedBy String
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("user_roles")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  family    String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userAgent String?
+  ipAddress String?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([family])
+  @@map("refresh_tokens")
+}
+
+// ============================================================================
+// ACADEMIC STRUCTURE
+// ============================================================================
+
+model Department {
+  id          String          @id @default(cuid())
+  tenantId    String
+  name        String
+  code        String
+  hodId       String?
+  vision      String?
+  mission     String?
+  description String?
+  status      EntityStatus    @default(active)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  hod      User?     @relation("DepartmentHOD", fields: [hodId], references: [id])
+  programs Program[]
+  faculty  Faculty[]
+
+  @@unique([tenantId, code])
+  @@map("departments")
+}
+
+model Program {
+  id             String       @id @default(cuid())
+  tenantId       String
+  departmentId   String
+  name           String
+  code           String
+  degreeType     DegreeType
+  duration       Int
+  totalSemesters Int
+  totalCredits   Int?
+  status         EntityStatus @default(active)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  tenant                Department              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  curricula             Curriculum[]
+  batches               Batch[]
+  programOutcomes       ProgramOutcome[]
+  programSpecificOutcomes ProgramSpecificOutcome[]
+  poAttainments         POAttainment[]
+  psoAttainments        PSOAttainment[]
+  attainmentConfigs     AttainmentConfig[]
+
+  @@unique([tenantId, code])
+  @@map("programs")
+}
+
+enum DegreeType {
+  btech
+  mtech
+  diploma
+  phd
+}
+
+model Curriculum {
+  id            String           @id @default(cuid())
+  tenantId      String
+  programId     String
+  version       String
+  name          String
+  effectiveFrom String
+  status        CurriculumStatus @default(draft)
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  tenant   Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  semesters Semester[]
+  courses   Course[]
+
+  @@unique([tenantId, programId, version])
+  @@map("curricula")
+}
+
+enum CurriculumStatus {
+  draft
+  active
+  archived
+}
+
+model AcademicYear {
+  id        String       @id @default(cuid())
+  tenantId  String
+  name      String
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean      @default(false)
+  status    EntityStatus @default(active)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relations
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  batches          Batch[]
+  courseOfferings  CourseOffering[]
+  academicCalendars AcademicCalendar[]
+  attainmentConfigs AttainmentConfig[]
+  poAttainments    POAttainment[]
+  psoAttainments   PSOAttainment[]
+
+  @@unique([tenantId, name])
+  @@map("academic_years")
+}
+
+model Semester {
+  id           String       @id @default(cuid())
+  tenantId     String
+  curriculumId String
+  number       Int
+  name         String
+  totalCredits Int?
+  status       EntityStatus @default(active)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relations
+  curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  courses    Course[]
+
+  @@unique([curriculumId, number])
+  @@map("semesters")
+}
+
+model CourseType {
+  id                 String         @id @default(cuid())
+  tenantId           String
+  name               String
+  code               String
+  description        String?
+  attendanceMode     AttendanceMode @default(daily)
+  hasPractical       Boolean        @default(false)
+  hasProject         Boolean        @default(false)
+  assessmentTemplate Json?
+  marksStructure     Json?
+  planType           PlanType       @default(teaching)
+  icon               String?
+  color              String?
+  isSystem           Boolean        @default(false)
+  status             EntityStatus   @default(active)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courses Course[]
+
+  @@unique([tenantId, code])
+  @@map("course_types")
+}
+
+enum AttendanceMode {
+  daily
+  batch_wise
+  experiment_wise
+}
+
+enum PlanType {
+  teaching
+  practical
+  project
+  none
+}
+
+model Course {
+  id              String       @id @default(cuid())
+  tenantId        String
+  semesterId      String
+  curriculumId    String
+  courseTypeId    String
+  name            String
+  code            String
+  shortName       String?
+  credits         Int
+  lectureHours    Int          @default(0)
+  tutorialHours   Int          @default(0)
+  practicalHours  Int          @default(0)
+  totalContactHours Int?
+  description     String?
+  syllabusUrl     String?
+  prerequisites   Json?
+  status          EntityStatus @default(active)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  tenant         Semester         @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  curriculum     Curriculum       @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
+  courseType     CourseType       @relation(fields: [courseTypeId], references: [id])
+  courseOfferings CourseOffering[]
+  questionBanks  QuestionBank[]
+
+  @@unique([tenantId, curriculumId, code])
+  @@map("courses")
+}
+
+model Batch {
+  id              String      @id @default(cuid())
+  tenantId        String
+  programId       String
+  academicYearId  String
+  name            String
+  admissionYear   Int
+  currentSemester Int         @default(1)
+  totalStudents   Int         @default(0)
+  status          BatchStatus @default(active)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  tenant         Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id])
+  sections       Section[]
+  students       Student[]
+  courseOfferings CourseOffering[]
+
+  @@unique([tenantId, programId, admissionYear])
+  @@map("batches")
+}
+
+enum BatchStatus {
+  active
+  graduated
+  archived
+}
+
+model Section {
+  id              String       @id @default(cuid())
+  tenantId        String
+  batchId         String
+  name            String
+  maxStrength     Int          @default(60)
+  currentStrength Int          @default(0)
+  status          EntityStatus @default(active)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  tenant         Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  students       Student[]
+  courseOfferings CourseOffering[]
+  labBatches     LabBatch[]
+
+  @@unique([batchId, name])
+  @@map("sections")
+}
+
+model LabBatch {
+  id               String       @id @default(cuid())
+  tenantId         String
+  sectionId        String
+  courseOfferingId String
+  name             String
+  maxStrength      Int          @default(20)
+  status           EntityStatus @default(active)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  tenant          Section           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  courseOffering  CourseOffering    @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  attendanceSessions AttendanceSession[]
+  courseEnrollments CourseEnrollment[]
+
+  @@map("lab_batches")
+}
+
+// ============================================================================
+// PEOPLE
+// ============================================================================
+
+model Student {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  userId             String          @unique
+  rollNumber         String
+  prnNumber          String?
+  registrationNumber String?
+  batchId            String
+  sectionId          String
+  currentSemester    Int             @default(1)
+  admissionYear      Int
+  admissionType      AdmissionType   @default(regular)
+  category           String?
+  bloodGroup         String?
+  dateOfBirth        DateTime?
+  guardianName       String?
+  guardianPhone      String?
+  guardianEmail      String?
+  address            Json?
+  previousEducation  Json?
+  cgpa               Decimal?        @db.Decimal(4, 2)
+  totalCreditsEarned Int             @default(0)
+  status             StudentStatus   @default(active)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch            Batch              @relation(fields: [batchId], references: [id])
+  section          Section            @relation(fields: [sectionId], references: [id])
+  courseEnrollments CourseEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  marks            Marks[]
+  slowLearners     SlowLearner[]
+  advancedLearners AdvancedLearner[]
+
+  @@unique([tenantId, rollNumber])
+  @@index([tenantId])
+  @@index([batchId])
+  @@index([sectionId])
+  @@map("students")
+}
+
+enum AdmissionType {
+  regular
+  lateral
+  transfer
+}
+
+enum StudentStatus {
+  active
+  graduated
+  dropout
+  suspended
+  passout
+}
+
+model Faculty {
+  id                String              @id @default(cuid())
+  tenantId          String
+  userId            String              @unique
+  departmentId      String
+  employeeId        String
+  designation       FacultyDesignation
+  qualification     String
+  specialization    String?
+  experience        Int?
+  dateOfJoining     DateTime?
+  employmentType    EmploymentType      @default(permanent)
+  researchInterests Json?
+  publications      Json?
+  status            FacultyStatus       @default(active)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department      Department         @relation(fields: [departmentId], references: [id])
+  courseOfferings CourseOffering[]   @relation("PrimaryFaculty")
+  labInstructorFor CourseOffering[]  @relation("LabInstructor")
+  remedialSessions RemedialSession[]
+  advancedLearnerMentor AdvancedLearner[]
+
+  @@unique([tenantId, employeeId])
+  @@index([tenantId])
+  @@index([departmentId])
+  @@map("faculty")
+}
+
+enum FacultyDesignation {
+  professor
+  associate_professor
+  assistant_professor
+  lecturer
+}
+
+enum EmploymentType {
+  permanent
+  contract
+  visiting
+  adjunct
+}
+
+enum FacultyStatus {
+  active
+  on_leave
+  retired
+  resigned
+}
+
+// ============================================================================
+// COURSE OFFERING & ENROLLMENT
+// ============================================================================
+
+model CourseOffering {
+  id                String              @id @default(cuid())
+  tenantId          String
+  courseId          String
+  academicYearId    String
+  semesterNumber    Int
+  sectionId         String
+  batchId           String
+  facultyId         String
+  labInstructorId   String?
+  startDate         DateTime?
+  endDate           DateTime?
+  maxEnrollment     Int                 @default(60)
+  currentEnrollment Int                 @default(0)
+  status            CourseOfferingStatus @default(planned)
+  config            Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course           Course             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id])
+  section          Section            @relation(fields: [sectionId], references: [id])
+  batch            Batch              @relation(fields: [batchId], references: [id])
+  faculty          Faculty            @relation("PrimaryFaculty", fields: [facultyId], references: [id])
+  labInstructor    Faculty?           @relation("LabInstructor", fields: [labInstructorId], references: [id])
+  courseEnrollments CourseEnrollment[]
+  courseOutcomes   CourseOutcome[]
+  attendanceSessions AttendanceSession[]
+  teachingPlans    TeachingPlan[]
+  practicalPlans   PracticalPlan[]
+  assessments      Assessment[]
+  marks            Marks[]
+  coAttainments    COAttainment[]
+  slowLearners     SlowLearner[]
+  remedialSessions RemedialSession[]
+  contentBeyondSyllabus ContentBeyondSyllabus[]
+  surveys          Survey[]
+  labBatches       LabBatch[]
+
+  @@unique([courseId, academicYearId, sectionId])
+  @@index([tenantId])
+  @@index([facultyId])
+  @@map("course_offerings")
+}
+
+enum CourseOfferingStatus {
+  planned
+  active
+  completed
+  cancelled
+}
+
+model CourseEnrollment {
+  id               String              @id @default(cuid())
+  tenantId         String
+  studentId        String
+  courseOfferingId String
+  labBatchId       String?
+  enrollmentDate   DateTime            @default(now())
+  grade            String?
+  gradePoints      Decimal?            @db.Decimal(3, 2)
+  result           EnrollmentResult?
+  status           EnrollmentStatus    @default(enrolled)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  labBatch       LabBatch?      @relation(fields: [labBatchId], references: [id])
+
+  @@unique([studentId, courseOfferingId])
+  @@map("course_enrollments")
+}
+
+enum EnrollmentResult {
+  pass
+  fail
+  absent
+  withheld
+}
+
+enum EnrollmentStatus {
+  enrolled
+  dropped
+  completed
+}
+
+// ============================================================================
+// OUTCOMES & MAPPING
+// ============================================================================
+
+model CourseOutcome {
+  id                    String           @id @default(cuid())
+  tenantId              String
+  courseOfferingId      String
+  coNumber              String
+  description           String
+  bloomLevel            BloomLevel
+  targetAttainmentLevel Decimal          @db.Decimal(3, 2)
+  version               Int              @default(1)
+  status                COStatus         @default(draft)
+  createdBy             String
+  approvedBy            String?
+  approvedAt            DateTime?
+  rejectionReason       String?
+  remarks               String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  // Relations
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  coPOMappings   COPOMapping[]
+  coPSOMappings  COPPSOMapping[]
+  coAttainments  COAttainment[]
+
+  @@unique([courseOfferingId, coNumber])
+  @@map("course_outcomes")
+}
+
+enum BloomLevel {
+  L1_remember
+  L2_understand
+  L3_apply
+  L4_analyze
+  L5_evaluate
+  L6_create
+}
+
+enum COStatus {
+  draft
+  under_review
+  approved
+  archived
+}
+
+model ProgramOutcome {
+  id          String       @id @default(cuid())
+  tenantId    String
+  programId   String
+  poNumber    String
+  description String
+  category    String?
+  status      EntityStatus @default(active)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  program      Program       @relation(fields: [programId], references: [id], onDelete: Cascade)
+  coPOMappings COPOMapping[]
+  poAttainments POAttainment[]
+
+  @@unique([programId, poNumber])
+  @@map("program_outcomes")
+}
+
+model ProgramSpecificOutcome {
+  id          String       @id @default(cuid())
+  tenantId    String
+  programId   String
+  psoNumber   String
+  description String
+  status      EntityStatus @default(active)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  program       Program         @relation(fields: [programId], references: [id], onDelete: Cascade)
+  coPSOMappings COPPSOMapping[]
+  psoAttainments PSOAttainment[]
+
+  @@unique([programId, psoNumber])
+  @@map("program_specific_outcomes")
+}
+
+model COPOMapping {
+  id               String       @id @default(cuid())
+  tenantId         String
+  courseOutcomeId  String
+  programOutcomeId String
+  mappingLevel     Int
+  justification    String?
+  version          Int          @default(1)
+  status           MappingStatus @default(draft)
+  approvedBy       String?
+  approvedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  courseOutcome  CourseOutcome  @relation(fields: [courseOutcomeId], references: [id], onDelete: Cascade)
+  programOutcome ProgramOutcome @relation(fields: [programOutcomeId], references: [id], onDelete: Cascade)
+
+  @@unique([courseOutcomeId, programOutcomeId])
+  @@map("co_po_mappings")
+}
+
+enum MappingStatus {
+  draft
+  approved
+}
+
+model COPPSOMapping {
+  id                       String       @id @default(cuid())
+  tenantId                 String
+  courseOutcomeId          String
+  programSpecificOutcomeId String
+  mappingLevel             Int
+  justification            String?
+  version                  Int          @default(1)
+  status                   MappingStatus @default(draft)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  // Relations
+  courseOutcome          CourseOutcome          @relation(fields: [courseOutcomeId], references: [id], onDelete: Cascade)
+  programSpecificOutcome ProgramSpecificOutcome @relation(fields: [programSpecificOutcomeId], references: [id], onDelete: Cascade)
+
+  @@unique([courseOutcomeId, programSpecificOutcomeId])
+  @@map("co_pso_mappings")
+}
+
+// ============================================================================
+// ATTENDANCE & TEACHING PLAN
+// ============================================================================
+
+model AcademicCalendar {
+  id             String          @id @default(cuid())
+  tenantId       String
+  academicYearId String
+  title          String
+  eventType      CalendarEventType
+  startDate      DateTime
+  endDate        DateTime
+  isHoliday      Boolean         @default(false)
+  applicableTo   Json?
+  description    String?
+  status         CalendarEventStatus @default(active)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+
+  @@map("academic_calendars")
+}
+
+enum CalendarEventType {
+  holiday
+  exam
+  event
+  teaching_start
+  teaching_end
+  vacation
+}
+
+enum CalendarEventStatus {
+  active
+  cancelled
+}
+
+model AttendanceSession {
+  id               String              @id @default(cuid())
+  tenantId         String
+  courseOfferingId String
+  date             DateTime
+  period           Int
+  sessionType      SessionType
+  labBatchId       String?
+  topicCovered     String?
+  cosCovered       Json?
+  markedBy         String
+  markedAt         DateTime            @default(now())
+  status           SessionStatus       @default(draft)
+  qrCode           String?             @unique
+  qrExpiresAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  labBatch       LabBatch?      @relation(fields: [labBatchId], references: [id])
+  attendanceRecords AttendanceRecord[]
+
+  @@unique([courseOfferingId, date, period, labBatchId])
+  @@index([tenantId])
+  @@map("attendance_sessions")
+}
+
+enum SessionType {
+  theory
+  lab
+  tutorial
+}
+
+enum SessionStatus {
+  draft
+  confirmed
+  locked
+}
+
+model AttendanceRecord {
+  id                  String           @id @default(cuid())
+  tenantId            String
+  attendanceSessionId String
+  studentId           String
+  status              AttendanceStatus
+  markedVia           AttendanceMarkingVia @default(manual)
+  remarks             String?
+  timestamp           DateTime         @default(now())
+
+  // Relations
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  student           Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceSessionId, studentId])
+  @@map("attendance_records")
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+  excused
+  medical
+}
+
+enum AttendanceMarkingVia {
+  manual
+  qr
+  bulk_import
+}
+
+model TeachingPlan {
+  id               String              @id @default(cuid())
+  tenantId         String
+  courseOfferingId String
+  unitNumber       Int
+  unitTitle        String
+  topicNumber      Int
+  topicTitle       String
+  subTopic         String?
+  mappedCOs        Json
+  plannedDate      DateTime?
+  actualDate       DateTime?
+  plannedHours     Int                 @default(1)
+  actualHours      Int?
+  ictToolsUsed     Json?
+  teachingMethod   String?
+  status           TeachingPlanStatus  @default(planned)
+  delayReason      String?
+  remarks          String?
+  sortOrder        Int
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+
+  @@map("teaching_plans")
+}
+
+enum TeachingPlanStatus {
+  planned
+  in_progress
+  completed
+  delayed
+  skipped
+}
+
+model PracticalPlan {
+  id                String              @id @default(cuid())
+  tenantId          String
+  courseOfferingId  String
+  experimentNumber  Int
+  title             String
+  description       String?
+  aim               String?
+  mappedCOs         Json
+  labBatchId        String?
+  plannedDate       DateTime?
+  actualDate        DateTime?
+  resourcesRequired Json?
+  labManualUrl      String?
+  status            PracticalPlanStatus @default(planned)
+  sortOrder         Int
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+
+  @@map("practical_plans")
+}
+
+enum PracticalPlanStatus {
+  planned
+  in_progress
+  completed
+  delayed
+}
+
+// ============================================================================
+// ASSESSMENT & MARKS
+// ============================================================================
+
+model AssessmentType {
+  id                    String              @id @default(cuid())
+  tenantId              String
+  name                  String
+  code                  String
+  category              AssessmentCategory
+  isInternal            Boolean             @default(true)
+  defaultMaxMarks       Int                 @default(20)
+  applicableCourseTypes Json?
+  defaultWeightage      Decimal?            @db.Decimal(5, 2)
+  icon                  String?
+  color                 String?
+  isSystem              Boolean             @default(false)
+  status                EntityStatus        @default(active)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assessments Assessment[]
+
+  @@unique([tenantId, code])
+  @@map("assessment_types")
+}
+
+enum AssessmentCategory {
+  formative
+  summative
+}
+
+model Assessment {
+  id                String              @id @default(cuid())
+  tenantId          String
+  courseOfferingId  String
+  assessmentTypeId  String
+  name              String
+  description       String?
+  maxMarks          Int
+  weightage         Decimal             @db.Decimal(5, 2)
+  passingMarks      Int?
+  examDate          DateTime?
+  dueDate           DateTime?
+  duration          Int?
+  coMapping         Json
+  bloomMapping      Json?
+  instructions      String?
+  isPublished       Boolean             @default(false)
+  marksEntryStatus  MarksEntryStatus    @default(pending)
+  createdBy         String
+  approvedBy        String?
+  approvedAt        DateTime?
+  status            AssessmentStatus    @default(draft)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  courseOffering  CourseOffering  @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  assessmentType  AssessmentType  @relation(fields: [assessmentTypeId], references: [id])
+  questionPapers  QuestionPaper[]
+  marks           Marks[]
+
+  @@map("assessments")
+}
+
+enum MarksEntryStatus {
+  pending
+  partial
+  complete
+  locked
+}
+
+enum AssessmentStatus {
+  draft
+  published
+  marks_entry
+  completed
+  locked
+}
+
+model QuestionBank {
+  id              String          @id @default(cuid())
+  tenantId        String
+  courseId        String
+  questionText    String
+  questionType    QuestionType
+  options         Json?
+  correctAnswer   String?
+  marks           Int
+  coId            String
+  bloomLevel      BloomLevel
+  difficultyLevel DifficultyLevel
+  expectedTime    Int?
+  tags            Json?
+  diagramUrl      String?
+  solutionText    String?
+  createdBy       String
+  isVerified      Boolean         @default(false)
+  status          EntityStatus    @default(active)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("question_banks")
+}
+
+enum QuestionType {
+  mcq
+  short_answer
+  long_answer
+  numerical
+  descriptive
+}
+
+enum DifficultyLevel {
+  easy
+  medium
+  hard
+}
+
+model QuestionPaper {
+  id                String              @id @default(cuid())
+  tenantId          String
+  assessmentId      String
+  paperTitle        String
+  instructions      String?
+  totalMarks        Int
+  duration          Int
+  sections          Json
+  bloomDistribution Json?
+  coDistribution    Json?
+  generatedBy       PaperGenerationMethod @default(manual)
+  aiPromptUsed      String?
+  approvedBy        String?
+  approvedAt        DateTime?
+  version           Int                 @default(1)
+  status            PaperStatus         @default(draft)
+  paperUrl          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("question_papers")
+}
+
+enum PaperGenerationMethod {
+  manual
+  ai
+}
+
+enum PaperStatus {
+  draft
+  approved
+  printed
+}
+
+model Marks {
+  id                 String       @id @default(cuid())
+  tenantId           String
+  assessmentId       String
+  studentId          String
+  courseOfferingId   String
+  totalMarksObtained Decimal      @db.Decimal(6, 2)
+  percentage         Decimal?     @db.Decimal(5, 2)
+  coWiseMarks        Json
+  questionWiseMarks  Json?
+  isAbsent           Boolean      @default(false)
+  isExempted         Boolean      @default(false)
+  remarks            String?
+  enteredBy          String
+  enteredAt          DateTime     @default(now())
+  modifiedBy         String?
+  modifiedAt         DateTime?
+  modificationReason String?
+  status             MarksStatus  @default(draft)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Relations
+  assessment     Assessment     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, studentId])
+  @@index([tenantId])
+  @@map("marks")
+}
+
+enum MarksStatus {
+  draft
+  submitted
+  verified
+  locked
+}
+
+// ============================================================================
+// ATTAINMENT
+// ============================================================================
+
+model AttainmentConfig {
+  id                      String              @id @default(cuid())
+  tenantId                String
+  programId               String
+  academicYearId          String
+  name                    String
+  directAttainmentFormula Json
+  indirectAttainmentFormula Json
+  directIndirectSplit     Json
+  mappingLevelWeights     Json
+  attainmentLevels        Json
+  version                 Int                 @default(1)
+  status                  ConfigStatus        @default(draft)
+  createdBy               String
+  approvedBy              String?
+  approvedAt              DateTime?
+  remarks                 String?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  // Relations
+  program       Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  academicYear  AcademicYear   @relation(fields: [academicYearId], references: [id])
+  coAttainments COAttainment[]
+  poAttainments POAttainment[]
+  psoAttainments PSOAttainment[]
+
+  @@map("attainment_configs")
+}
+
+enum ConfigStatus {
+  draft
+  active
+  archived
+}
+
+model COAttainment {
+  id                      String       @id @default(cuid())
+  tenantId                String
+  courseOfferingId        String
+  courseOutcomeId         String
+  attainmentConfigId      String
+  directAttainmentValue   Decimal      @db.Decimal(4, 2)
+  indirectAttainmentValue Decimal?     @db.Decimal(4, 2)
+  finalAttainmentValue    Decimal      @db.Decimal(4, 2)
+  targetLevel             Decimal      @db.Decimal(3, 2)
+  isAttained              Boolean
+  assessmentWiseBreakdown Json
+  calculatedAt            DateTime     @default(now())
+  calculatedBy            String
+  version                 Int          @default(1)
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  // Relations
+  courseOffering   CourseOffering   @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  courseOutcome    CourseOutcome    @relation(fields: [courseOutcomeId], references: [id], onDelete: Cascade)
+  attainmentConfig AttainmentConfig @relation(fields: [attainmentConfigId], references: [id])
+
+  @@unique([courseOfferingId, courseOutcomeId, version])
+  @@map("co_attainments")
+}
+
+model POAttainment {
+  id                   String       @id @default(cuid())
+  tenantId             String
+  programId            String
+  programOutcomeId     String
+  academicYearId       String
+  attainmentConfigId   String
+  attainmentValue      Decimal      @db.Decimal(4, 2)
+  contributingCOs      Json
+  targetLevel          Decimal      @db.Decimal(3, 2)
+  isAttained           Boolean
+  trend                Json?
+  calculatedAt         DateTime     @default(now())
+  calculatedBy         String
+  version              Int          @default(1)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  // Relations
+  program          Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programOutcome   ProgramOutcome   @relation(fields: [programOutcomeId], references: [id], onDelete: Cascade)
+  academicYear     AcademicYear     @relation(fields: [academicYearId], references: [id])
+  attainmentConfig AttainmentConfig @relation(fields: [attainmentConfigId], references: [id])
+
+  @@unique([programId, programOutcomeId, academicYearId, version])
+  @@map("po_attainments")
+}
+
+model PSOAttainment {
+  id                   String       @id @default(cuid())
+  tenantId             String
+  programId            String
+  psoId                String
+  academicYearId       String
+  attainmentConfigId   String
+  attainmentValue      Decimal      @db.Decimal(4, 2)
+  contributingCOs      Json
+  targetLevel          Decimal      @db.Decimal(3, 2)
+  isAttained           Boolean
+  trend                Json?
+  calculatedAt         DateTime     @default(now())
+  calculatedBy         String
+  version              Int          @default(1)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  // Relations
+  program                 ProgramSpecificOutcome @relation(fields: [psoId], references: [id], onDelete: Cascade)
+  programModel            Program               @relation(fields: [programId], references: [id], onDelete: Cascade)
+  academicYear            AcademicYear          @relation(fields: [academicYearId], references: [id])
+  attainmentConfig        AttainmentConfig      @relation(fields: [attainmentConfigId], references: [id])
+
+  @@unique([programId, psoId, academicYearId, version])
+  @@map("pso_attainments")
+}
+
+// ============================================================================
+// LEARNERS & BEYOND SYLLABUS
+// ============================================================================
+
+model SlowLearner {
+  id                       String              @id @default(cuid())
+  tenantId                 String
+  studentId                String
+  courseOfferingId         String
+  identificationCriteria   Json
+  identifiedAt             DateTime            @default(now())
+  identifiedBy             SlowLearnerIdentifiedBy @default(system)
+  currentAttendancePercent Decimal?            @db.Decimal(5, 2)
+  currentMarksPercent      Decimal?            @db.Decimal(5, 2)
+  status                   SlowLearnerStatus   @default(identified)
+  remarks                  String?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+
+  // Relations
+  student          Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering   CourseOffering    @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  remedialSessions RemedialSession[]
+
+  @@map("slow_learners")
+}
+
+enum SlowLearnerIdentifiedBy {
+  system
+  faculty
+}
+
+enum SlowLearnerStatus {
+  identified
+  remedial_planned
+  in_progress
+  improved
+  no_change
+}
+
+model RemedialSession {
+  id               String              @id @default(cuid())
+  tenantId         String
+  slowLearnerId    String
+  courseOfferingId String
+  sessionDate      DateTime
+  duration         Int
+  topic            String
+  conductedBy      String
+  studentsAttended Json
+  preSessionMarks  Decimal?            @db.Decimal(5, 2)
+  postSessionMarks Decimal?            @db.Decimal(5, 2)
+  status           RemedialSessionStatus @default(scheduled)
+  evidenceUrl      String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  slowLearner    SlowLearner    @relation(fields: [slowLearnerId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  faculty        Faculty        @relation(fields: [conductedBy], references: [id])
+
+  @@map("remedial_sessions")
+}
+
+enum RemedialSessionStatus {
+  scheduled
+  completed
+  cancelled
+}
+
+model AdvancedLearner {
+  id                     String              @id @default(cuid())
+  tenantId               String
+  studentId              String
+  identificationCriteria Json
+  identifiedAt           DateTime            @default(now())
+  cgpa                   Decimal             @db.Decimal(4, 2)
+  activities             Json
+  mentorFacultyId        String?
+  status                 AdvancedLearnerStatus @default(identified)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  // Relations
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  mentorFaculty  Faculty? @relation(fields: [mentorFacultyId], references: [id])
+
+  @@map("advanced_learners")
+}
+
+enum AdvancedLearnerStatus {
+  identified
+  active
+  graduated
+}
+
+model ContentBeyondSyllabus {
+  id               String              @id @default(cuid())
+  tenantId         String
+  courseOfferingId String
+  activityType     BeyondSyllabusActivityType
+  title            String
+  description      String?
+  date             DateTime
+  duration         Int?
+  conductedBy      String?
+  venue            String?
+  participants     Json?
+  outcomes         String?
+  linkedCOs        Json?
+  evidenceUrls     Json?
+  status           BeyondSyllabusStatus @default(planned)
+  createdBy        String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Relations
+  courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+
+  @@map("content_beyond_syllabus")
+}
+
+enum BeyondSyllabusActivityType {
+  workshop
+  seminar
+  expert_talk
+  industrial_visit
+  hackathon
+  mooc
+  competition
+}
+
+enum BeyondSyllabusStatus {
+  planned
+  completed
+  cancelled
+}
+
+// ============================================================================
+// SURVEYS & DOCUMENTS
+// ============================================================================
+
+model Survey {
+  id               String       @id @default(cuid())
+  tenantId         String
+  title            String
+  description      String?
+  surveyType       SurveyType
+  targetAudience   SurveyTargetAudience
+  courseOfferingId String?
+  questions        Json
+  startDate        DateTime
+  endDate          DateTime
+  isAnonymous      Boolean      @default(true)
+  status           SurveyStatus @default(draft)
+  totalResponses   Int          @default(0)
+  createdBy        String
+  config           Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  courseOffering CourseOffering? @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  surveyResponses SurveyResponse[]
+
+  @@map("surveys")
+}
+
+enum SurveyType {
+  course_exit
+  faculty_feedback
+  event_feedback
+  alumni
+  employer
+  custom
+}
+
+enum SurveyTargetAudience {
+  students
+  faculty
+  alumni
+  employers
+}
+
+enum SurveyStatus {
+  draft
+  active
+  closed
+  analyzed
+}
+
+model SurveyResponse {
+  id          String       @id @default(cuid())
+  tenantId    String
+  surveyId    String
+  respondentId String?
+  responses   Json
+  submittedAt DateTime     @default(now())
+  ipAddress   String?
+  status      ResponseStatus @default(submitted)
+
+  // Relations
+  survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@map("survey_responses")
+}
+
+enum ResponseStatus {
+  submitted
+  invalid
+}
+
+model Document {
+  id                String       @id @default(cuid())
+  tenantId          String
+  category          DocumentCategory
+  subcategory       String?
+  title             String
+  description       String?
+  fileUrl           String
+  fileKey           String
+  fileName          String
+  fileType          String
+  fileSize          Int
+  uploadedBy        String
+  uploadedAt        DateTime     @default(now())
+  linkedEntityType  String?
+  linkedEntityId    String?
+  tags              Json?
+  version           Int          @default(1)
+  previousVersionId String?
+  accessLevel       DocumentAccessLevel @default(private)
+  status            EntityStatus @default(active)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  previousVersion Document? @relation("DocumentVersion", fields: [previousVersionId], references: [id])
+  nextVersions    Document[] @relation("DocumentVersion")
+
+  @@map("documents")
+}
+
+enum DocumentCategory {
+  course_file
+  audit
+  student
+  faculty
+  administrative
+}
+
+enum DocumentAccessLevel {
+  public
+  department
+  program
+  private
+}
+
+// ============================================================================
+// SYSTEM
+// ============================================================================
+
+model AuditLog {
+  id         String       @id @default(cuid())
+  tenantId   String
+  userId     String
+  userName   String
+  userRole   String
+  action     AuditAction
+  module     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime     @default(now())
+  metadata   Json?
+  severity   AuditSeverity @default(info)
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, timestamp])
+  @@index([tenantId, module])
+  @@index([tenantId, userId])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  APPROVE
+  REJECT
+  CALCULATE
+  IMPORT
+}
+
+enum AuditSeverity {
+  info
+  warning
+  critical
+}
+
+model Notification {
+  id               String              @id @default(cuid())
+  tenantId         String
+  userId           String
+  title            String
+  message          String
+  type             NotificationType
+  channel          NotificationChannel
+  category         NotificationCategory
+  linkedEntityType String?
+  linkedEntityId   String?
+  linkUrl          String?
+  isRead           Boolean             @default(false)
+  readAt           DateTime?
+  sentAt           DateTime?
+  sentVia          String?
+  status           NotificationStatus  @default(pending)
+  createdAt        DateTime            @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  info
+  warning
+  success
+  error
+}
+
+enum NotificationChannel {
+  in_app
+  email
+  sms
+}
+
+enum NotificationCategory {
+  attendance
+  assessment
+  feedback
+  system
+  approval
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  failed
+  read
+}
+
+// ============================================================================
+// COMMON ENUMS
+// ============================================================================
+
+enum EntityStatus {
+  active
+  archived
+}

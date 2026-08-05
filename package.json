@@ -1,0 +1,56 @@
+{
+  "name": "eduobe",
+  "version": "2.0.0",
+  "private": true,
+  "description": "EduOBE - Outcome-Based Education & NBA Accreditation Platform",
+  "author": "EduOBE Team",
+  "license": "UNLICENSED",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@eduobe/web",
+    "dev:api": "turbo run dev --filter=@eduobe/api",
+    "build": "turbo run build",
+    "build:web": "turbo run build --filter=@eduobe/web",
+    "build:api": "turbo run build --filter=@eduobe/api",
+    "start": "turbo run start",
+    "start:web": "turbo run start --filter=@eduobe/web",
+    "start:api": "turbo run start --filter=@eduobe/api",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "type-check": "turbo run type-check",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e",
+    "db:generate": "turbo run db:generate --filter=@eduobe/database",
+    "db:push": "turbo run db:push --filter=@eduobe/database",
+    "db:migrate": "turbo run db:migrate --filter=@eduobe/database",
+    "db:seed": "turbo run db:seed --filter=@eduobe/database",
+    "db:studio": "turbo run db:studio --filter=@eduobe/database",
+    "db:reset": "turbo run db:reset --filter=@eduobe/database",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@eduobe/config": "workspace:*",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.6",
+    "typescript": "^5.4.5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,json,md}": [
+      "prettier --write"
+    ]
+  },
+  "packageManager": "pnpm@9.1.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
