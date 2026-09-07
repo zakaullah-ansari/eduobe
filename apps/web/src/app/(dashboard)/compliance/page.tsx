@@ -68,7 +68,7 @@ export default function CompliancePage() {
     {
       accessorKey: 'category',
       header: 'Category',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('category').toUpperCase()}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{String(row.getValue('category')).toUpperCase()}</Badge>,
     },
     {
       accessorKey: 'regulation',
@@ -162,7 +162,7 @@ export default function CompliancePage() {
     {
       accessorKey: 'category',
       header: 'Category',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('category').toUpperCase()}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{String(row.getValue('category')).toUpperCase()}</Badge>,
     },
     {
       accessorKey: 'reportingPeriod',

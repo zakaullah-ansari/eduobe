@@ -85,7 +85,7 @@ export const useExportData = () => {
     onSuccess: () => {
       toast.success('Export completed successfully');
     },
-    onError: (error: any) {
+    onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to export data');
     },
   });
@@ -131,9 +131,9 @@ export const parseExcelFile = async (file: File): Promise<any[]> => {
       try {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'binary' });
-        const sheetName = workbook.SheetNames[0];
+        const sheetName = workbook.SheetNames[0] ?? '';
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = worksheet ? XLSX.utils.sheet_to_json(worksheet) : [];
         resolve(jsonData);
       } catch (error) {
         reject(error);

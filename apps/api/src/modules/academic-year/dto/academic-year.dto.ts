@@ -1,7 +1,7 @@
 import { IsString, IsNotEmpty, IsDate, IsOptional, IsEnum, MinLength, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AcademicYearStatus } from '@prisma/client';
+import { EntityStatus } from '@prisma/client';
 
 export class CreateAcademicYearDto {
   @ApiProperty({ example: '2024-25', description: 'Academic year name' })
@@ -50,17 +50,17 @@ export class UpdateAcademicYearDto {
   @IsOptional()
   isCurrent?: boolean;
 
-  @ApiPropertyOptional({ enum: AcademicYearStatus })
+  @ApiPropertyOptional({ enum: EntityStatus })
   @IsOptional()
-  @IsEnum(AcademicYearStatus)
-  status?: AcademicYearStatus;
+  @IsEnum(EntityStatus)
+  status?: EntityStatus;
 }
 
 export class AcademicYearQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(AcademicYearStatus)
-  status?: AcademicYearStatus;
+  @IsEnum(EntityStatus)
+  status?: EntityStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

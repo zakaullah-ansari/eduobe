@@ -80,7 +80,7 @@ export default function DisciplinaryPage() {
     {
       accessorKey: 'violationType',
       header: 'Violation Type',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('violationType').replace('_', ' ')}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{String(row.getValue('violationType')).replace('_', ' ')}</Badge>,
     },
     {
       accessorKey: 'severity',

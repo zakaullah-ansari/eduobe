@@ -13,6 +13,11 @@ export interface AcademicYear {
   tenantId: string;
   createdAt: string;
   updatedAt: string;
+  _count?: {
+    students?: number;
+    courses?: number;
+    faculty?: number;
+  };
 }
 
 export interface CreateAcademicYearDto {

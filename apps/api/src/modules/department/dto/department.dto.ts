@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsOptional, IsEnum, MinLength, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { DepartmentStatus } from '@prisma/client';
+import { EntityStatus } from '@prisma/client';
 
 export class CreateDepartmentDto {
   @ApiProperty({ example: 'Computer Science', description: 'Department name' })
@@ -53,17 +53,17 @@ export class UpdateDepartmentDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ enum: DepartmentStatus })
+  @ApiPropertyOptional({ enum: EntityStatus })
   @IsOptional()
-  @IsEnum(DepartmentStatus)
-  status?: DepartmentStatus;
+  @IsEnum(EntityStatus)
+  status?: EntityStatus;
 }
 
 export class DepartmentQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(DepartmentStatus)
-  status?: DepartmentStatus;
+  @IsEnum(EntityStatus)
+  status?: EntityStatus;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -1,3 +1,5 @@
+import { AiChatbotWidget } from '@/components/ai/chatbot-widget';
+
 export default function DashboardLayout({
   children,
 }: {
@@ -28,6 +30,26 @@ export default function DashboardLayout({
             <a href="/courses" className="block px-3 py-2 rounded hover:bg-accent">
               Courses
             </a>
+            <div className="pt-3 mt-3 border-t">
+              <div className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                AI
+              </div>
+              <a href="/ai/chatbot" className="block px-3 py-2 rounded hover:bg-accent">
+                AI Chatbot
+              </a>
+              <a href="/ai/recommendations" className="block px-3 py-2 rounded hover:bg-accent">
+                Recommendations
+              </a>
+              <a href="/ai/sentiment" className="block px-3 py-2 rounded hover:bg-accent">
+                Sentiment
+              </a>
+              <a href="/ai/content-generation" className="block px-3 py-2 rounded hover:bg-accent">
+                Content Generation
+              </a>
+              <a href="/ai/dropout" className="block px-3 py-2 rounded hover:bg-accent">
+                Dropout Prediction
+              </a>
+            </div>
           </nav>
         </aside>
 
@@ -36,6 +58,7 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+      <AiChatbotWidget />
     </div>
   );
 }
