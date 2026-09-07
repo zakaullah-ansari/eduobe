@@ -139,14 +139,14 @@ export function useRecordPayment() {
   });
 }
 
-export function useGetStudentDues() {
+export function useGetStudentDues(studentId?: string) {
   return useQuery({
-    queryKey: ['student-dues'],
-    queryFn: async (studentId: string) => {
+    queryKey: ['student-dues', studentId],
+    queryFn: async () => {
       const response = await apiClient.get(`/fees/student/${studentId}/dues`);
       return response.data.data;
     },
-    enabled: false,
+    enabled: !!studentId,
   });
 }
 

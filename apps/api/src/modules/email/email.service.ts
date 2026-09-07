@@ -40,7 +40,7 @@ export class EmailService {
         text: options.text,
       });
 
-      return { id: result.id };
+      return { id: (result as any).id ?? (result as any).data?.id };
     } catch (error: any) {
       console.error('❌ Email send error:', error.message);
       return { error: error.message };

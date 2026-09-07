@@ -36,6 +36,98 @@ services:
       timeout: 5s
       retries: 5
 
+  # ==========================================================================
+  # AI system (PR #2)
+  # ==========================================================================
+  ai-service:
+    build:
+      context: .
+      dockerfile: apps/ai-service/Dockerfile
+    container_name: eduobe-ai-service
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      REDIS_URL: redis://redis:6379/0
+      REDIS_QUEUE_KEY: eduobe:ai:jobs
+      SERVICE_API_KEY: ${AI_SERVICE_API_KEY:-change-me-ai-service-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      WEBHOOK_URL: http://api:4000/api/v1/ai/webhook
+    ports:
+      - '8000:8000'
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  ai-worker:
+    build:
+      context: .
+      dockerfile: apps/ai-service/Dockerfile
+    container_name: eduobe-ai-worker
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      REDIS_URL: redis://redis:6379/0
+      REDIS_QUEUE_KEY: eduobe:ai:jobs
+      SERVICE_API_KEY: ${AI_SERVICE_API_KEY:-change-me-ai-service-key}
+      WEBHOOK_URL: http://api:4000/api/v1/ai/webhook
+    command: ['python', '-m', 'app.workers.worker']
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  # ==========================================================================
+  # App services
+  # ==========================================================================
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: eduobe-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://eduobe:eduobe@postgres:5432/eduobe?schema=public
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: http://localhost:3000
+      AI_ENABLED: 'true'
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY:-change-me-ai-service-key}
+      AI_REDIS_CHANNEL: eduobe:ai:jobs
+      APP_BASE_URL: http://localhost:4000
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-in-production}
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ai-service:
+        condition: service_started
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: eduobe-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - '3000:3000'
+    depends_on:
+      - api
+
 volumes:
   postgres_data:
     driver: local

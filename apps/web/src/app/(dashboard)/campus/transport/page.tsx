@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useExamSchedules, useExams, useHallTickets, useExamResults } from '@/services/routeination.service';
+import { useExamSchedules, useExams, useHallTickets, useExamResults } from '@/services/examination.service';
 import { DataTable } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -386,25 +386,25 @@ export default function ExaminationsPage() {
   ];
 
   const filteredSchedules = schedules?.filter(
-    (schedule) =>
+    (schedule: any) =>
       schedule.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       schedule.routeType.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredExams = routes?.filter(
-    (route) =>
+    (route: any) =>
       route.routeNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       route.courseOffering?.course?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredHallTickets = hallTickets?.filter(
-    (hallTicket) =>
+    (hallTicket: any) =>
       hallTicket.hallTicketNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       hallTicket.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const filteredResults = results?.filter(
-    (result) =>
+    (result: any) =>
       result.resultNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       result.student?.firstName.toLowerCase().includes(searchQuery.toLowerCase())
   );

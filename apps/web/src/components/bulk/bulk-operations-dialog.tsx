@@ -152,13 +152,13 @@ export function BulkOperationsDialog({ module, selectedIds, onSuccess, children 
               <Label>Field to Update</Label>
               <Input
                 placeholder="Field name"
-                value={Object.keys(updates)[0] || ''}
-                onChange={(e) => setUpdates({ [e.target.value]: updates[Object.keys(updates)[0]] || '' })}
+                value={Object.keys(updates)[0] ?? ''}
+                onChange={(e) => setUpdates({ [e.target.value]: updates[Object.keys(updates)[0] ?? ''] ?? '' })}
               />
               <Input
                 placeholder="New value"
-                value={updates[Object.keys(updates)[0]] || ''}
-                onChange={(e) => setUpdates({ [Object.keys(updates)[0]]: e.target.value })}
+                value={updates[Object.keys(updates)[0] ?? ''] ?? ''}
+                onChange={(e) => setUpdates({ [Object.keys(updates)[0] ?? '']: e.target.value })}
               />
             </div>
           )}

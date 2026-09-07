@@ -337,6 +337,9 @@ export class AuthService {
     }
 
     const user = users[0];
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
     const metadata = user.metadata as any;
 
     // Check expiry

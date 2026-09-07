@@ -46,6 +46,31 @@ export enum DomainEvent {
   // Notification events
   NOTIFICATION_CREATED = 'notification.created',
   NOTIFICATION_SENT = 'notification.sent',
+
+  // Academic year events
+  ACADEMIC_YEAR_CREATED = 'academic-year.created',
+  ACADEMIC_YEAR_UPDATED = 'academic-year.updated',
+  ACADEMIC_YEAR_ARCHIVED = 'academic-year.archived',
+
+  // Department events
+  DEPARTMENT_CREATED = 'department.created',
+  DEPARTMENT_UPDATED = 'department.updated',
+  DEPARTMENT_ARCHIVED = 'department.archived',
+
+  // Feedback / survey events
+  FEEDBACK_RECEIVED = 'feedback.received',
+  SURVEY_RESPONSE_SUBMITTED = 'survey.response.submitted',
+
+  // AI events (PR #2)
+  AI_CONVERSATION_STARTED = 'ai.conversation.started',
+  AI_MESSAGE_SENT = 'ai.message.sent',
+  AI_RECORD_CREATED = 'ai.record.created',
+  AI_RECORD_UPDATED = 'ai.record.updated',
+  AI_RECORD_DELETED = 'ai.record.deleted',
+  AI_FEEDBACK_RECEIVED = 'ai.feedback.received',
+  AI_JOB_CREATED = 'ai.job.created',
+  AI_JOB_UPDATED = 'ai.job.updated',
+  AI_USAGE_LOGGED = 'ai.usage.logged',
 }
 
 @Injectable()

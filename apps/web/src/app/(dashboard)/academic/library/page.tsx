@@ -311,7 +311,7 @@ export default function LibraryPage() {
       (book) =>
         book.title.toLowerCase().includes(query) ||
         book.author.toLowerCase().includes(query) ||
-        book.isbn.toLowerCase().includes(query) ||
+        (book.isbn ?? '').toLowerCase().includes(query) ||
         book.category.toLowerCase().includes(query)
     );
   }, [books, searchQuery]);

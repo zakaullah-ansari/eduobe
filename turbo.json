@@ -31,7 +31,13 @@
       "dependsOn": ["build"]
     },
     "db:generate": {
-      "cache": false
+      "cache": false,
+      "env": [
+        "PRISMA_QUERY_ENGINE_LIBRARY",
+        "PRISMA_SCHEMA_ENGINE_BINARY",
+        "PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING",
+        "PRISMA_ENGINES_MIRROR"
+      ]
     },
     "db:push": {
       "cache": false

@@ -7,6 +7,10 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
+  avatar?: string;
+  tenantName?: string;
+  emailVerified?: boolean;
   roles: string[];
   permissions: string[];
 }

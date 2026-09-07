@@ -33,6 +33,7 @@ model Tenant {
   programs           Program[]
   curricula          Curriculum[]
   academicYears      AcademicYear[]
+  semesters          Semester[]
   courseTypes        CourseType[]
   courses            Course[]
   batches            Batch[]
@@ -70,6 +71,27 @@ model Tenant {
   auditLogs          AuditLog[]
   notifications      Notification[]
   academicCalendars  AcademicCalendar[]
+  aiConfigurations       AIConfiguration[]
+  aiConversations       AIConversation[]
+  aiMessages            AIMessage[]
+  aiFeedbacks           AIFeedback[]
+  courseRecommendations CourseRecommendation[]
+  recommendationFeedbacks RecommendationFeedback[]
+  learningPaths         LearningPath[]
+  learningPathNodes     LearningPathNode[]
+  personalizedStudyPlans PersonalizedStudyPlan[]
+  skillGapAnalyses      SkillGapAnalysis[]
+  sentimentAnalyses     SentimentAnalysis[]
+  contentGenerationRequests ContentGenerationRequest[]
+  generatedContents     GeneratedContent[]
+  aiQuestions           AIQuestion[]
+  answerEvaluations     AnswerEvaluation[]
+  dropoutPredictions    DropoutPrediction[]
+  atRiskStudents        AtRiskStudent[]
+  smartSearchQueries    SmartSearchQuery[]
+  searchResultFeedbacks SearchResultFeedback[]
+  aiUsageLogs           AIUsageLog[]
+  aiJobs                AIJob[]
 
   @@map("tenants")
 }
@@ -116,6 +138,18 @@ model User {
   refreshTokens RefreshToken[]
   student   Student?
   faculty   Faculty?
+  departmentsHOD Department[] @relation("DepartmentHOD")
+  aiConversations        AIConversation[]
+  aiFeedbacks            AIFeedback[]
+  recommendationFeedbacks RecommendationFeedback[]
+  contentGenerationRequests ContentGenerationRequest[]
+  generatedContents      GeneratedContent[]
+  aiQuestions            AIQuestion[]
+  answerEvaluations      AnswerEvaluation[]
+  smartSearchQueries     SmartSearchQuery[]
+  searchResultFeedbacks  SearchResultFeedback[]
+  aiUsageLogs            AIUsageLog[]
+  aiJobs                 AIJob[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -250,7 +284,7 @@ model Program {
   updatedAt      DateTime     @updatedAt
 
   // Relations
-  tenant                Department              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  department                 Department              @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   curricula             Curriculum[]
   batches               Batch[]
   programOutcomes       ProgramOutcome[]
@@ -258,9 +292,12 @@ model Program {
   poAttainments         POAttainment[]
   psoAttainments        PSOAttainment[]
   attainmentConfigs     AttainmentConfig[]
+  learningPaths         LearningPath[]
+  personalizedStudyPlans PersonalizedStudyPlan[]
 
   @@unique([tenantId, code])
   @@map("programs")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum DegreeType {
@@ -284,12 +321,13 @@ model Curriculum {
   updatedAt     DateTime         @updatedAt
 
   // Relations
-  tenant   Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
+  program    Program    @relation(fields: [programId], references: [id], onDelete: Cascade)
   semesters Semester[]
   courses   Course[]
 
   @@unique([tenantId, programId, version])
   @@map("curricula")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum CurriculumStatus {
@@ -336,6 +374,8 @@ model Semester {
   // Relations
   curriculum Curriculum @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   courses    Course[]
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([curriculumId, number])
   @@map("semesters")
@@ -403,14 +443,22 @@ model Course {
   updatedAt       DateTime     @updatedAt
 
   // Relations
-  tenant         Semester         @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  semester          Semester         @relation(fields: [semesterId], references: [id], onDelete: Cascade)
   curriculum     Curriculum       @relation(fields: [curriculumId], references: [id], onDelete: Cascade)
   courseType     CourseType       @relation(fields: [courseTypeId], references: [id])
   courseOfferings CourseOffering[]
   questionBanks  QuestionBank[]
+  courseRecommendations CourseRecommendation[]
+  learningPathNodes     LearningPathNode[]
+  personalizedStudyPlans PersonalizedStudyPlan[]
+  skillGapAnalyses      SkillGapAnalysis[]
+  contentGenerationRequests ContentGenerationRequest[]
+  generatedContents     GeneratedContent[]
+  aiQuestions           AIQuestion[]
 
   @@unique([tenantId, curriculumId, code])
   @@map("courses")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model Batch {
@@ -427,7 +475,7 @@ model Batch {
   updatedAt       DateTime    @updatedAt
 
   // Relations
-  tenant         Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  program          Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
   academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id])
   sections       Section[]
   students       Student[]
@@ -435,6 +483,7 @@ model Batch {
 
   @@unique([tenantId, programId, admissionYear])
   @@map("batches")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum BatchStatus {
@@ -455,13 +504,14 @@ model Section {
   updatedAt       DateTime     @updatedAt
 
   // Relations
-  tenant         Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch          Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
   students       Student[]
   courseOfferings CourseOffering[]
   labBatches     LabBatch[]
 
   @@unique([batchId, name])
   @@map("sections")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model LabBatch {
@@ -476,12 +526,13 @@ model LabBatch {
   updatedAt        DateTime     @updatedAt
 
   // Relations
-  tenant          Section           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section           Section           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   courseOffering  CourseOffering    @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
   attendanceSessions AttendanceSession[]
   courseEnrollments CourseEnrollment[]
 
   @@map("lab_batches")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================================
@@ -524,6 +575,12 @@ model Student {
   marks            Marks[]
   slowLearners     SlowLearner[]
   advancedLearners AdvancedLearner[]
+  courseRecommendations CourseRecommendation[]
+  learningPaths         LearningPath[]
+  personalizedStudyPlans PersonalizedStudyPlan[]
+  skillGapAnalyses      SkillGapAnalysis[]
+  dropoutPredictions    DropoutPrediction[]
+  atRiskStudents        AtRiskStudent[]
 
   @@unique([tenantId, rollNumber])
   @@index([tenantId])
@@ -644,6 +701,9 @@ model CourseOffering {
   contentBeyondSyllabus ContentBeyondSyllabus[]
   surveys          Survey[]
   labBatches       LabBatch[]
+  sentimentAnalyses SentimentAnalysis[]
+  dropoutPredictions DropoutPrediction[]
+  atRiskStudents    AtRiskStudent[]
 
   @@unique([courseId, academicYearId, sectionId])
   @@index([tenantId])
@@ -679,6 +739,7 @@ model CourseEnrollment {
 
   @@unique([studentId, courseOfferingId])
   @@map("course_enrollments")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum EnrollmentResult {
@@ -724,6 +785,7 @@ model CourseOutcome {
 
   @@unique([courseOfferingId, coNumber])
   @@map("course_outcomes")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum BloomLevel {
@@ -760,6 +822,7 @@ model ProgramOutcome {
 
   @@unique([programId, poNumber])
   @@map("program_outcomes")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model ProgramSpecificOutcome {
@@ -779,6 +842,7 @@ model ProgramSpecificOutcome {
 
   @@unique([programId, psoNumber])
   @@map("program_specific_outcomes")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model COPOMapping {
@@ -801,6 +865,7 @@ model COPOMapping {
 
   @@unique([courseOutcomeId, programOutcomeId])
   @@map("co_po_mappings")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum MappingStatus {
@@ -826,6 +891,7 @@ model COPPSOMapping {
 
   @@unique([courseOutcomeId, programSpecificOutcomeId])
   @@map("co_pso_mappings")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================================
@@ -894,6 +960,7 @@ model AttendanceSession {
   @@unique([courseOfferingId, date, period, labBatchId])
   @@index([tenantId])
   @@map("attendance_sessions")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum SessionType {
@@ -924,6 +991,7 @@ model AttendanceRecord {
 
   @@unique([attendanceSessionId, studentId])
   @@map("attendance_records")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum AttendanceStatus {
@@ -967,6 +1035,7 @@ model TeachingPlan {
   courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
 
   @@map("teaching_plans")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum TeachingPlanStatus {
@@ -1000,6 +1069,7 @@ model PracticalPlan {
   courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
 
   @@map("practical_plans")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum PracticalPlanStatus {
@@ -1075,6 +1145,7 @@ model Assessment {
   marks           Marks[]
 
   @@map("assessments")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum MarksEntryStatus {
@@ -1118,6 +1189,7 @@ model QuestionBank {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@map("question_banks")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum QuestionType {
@@ -1159,6 +1231,7 @@ model QuestionPaper {
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@map("question_papers")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum PaperGenerationMethod {
@@ -1202,6 +1275,7 @@ model Marks {
   @@unique([assessmentId, studentId])
   @@index([tenantId])
   @@map("marks")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum MarksStatus {
@@ -1243,6 +1317,7 @@ model AttainmentConfig {
   psoAttainments PSOAttainment[]
 
   @@map("attainment_configs")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum ConfigStatus {
@@ -1276,6 +1351,7 @@ model COAttainment {
 
   @@unique([courseOfferingId, courseOutcomeId, version])
   @@map("co_attainments")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model POAttainment {
@@ -1304,6 +1380,7 @@ model POAttainment {
 
   @@unique([programId, programOutcomeId, academicYearId, version])
   @@map("po_attainments")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model PSOAttainment {
@@ -1332,6 +1409,7 @@ model PSOAttainment {
 
   @@unique([programId, psoId, academicYearId, version])
   @@map("pso_attainments")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================================
@@ -1359,6 +1437,7 @@ model SlowLearner {
   remedialSessions RemedialSession[]
 
   @@map("slow_learners")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum SlowLearnerIdentifiedBy {
@@ -1397,6 +1476,7 @@ model RemedialSession {
   faculty        Faculty        @relation(fields: [conductedBy], references: [id])
 
   @@map("remedial_sessions")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum RemedialSessionStatus {
@@ -1423,6 +1503,7 @@ model AdvancedLearner {
   mentorFaculty  Faculty? @relation(fields: [mentorFacultyId], references: [id])
 
   @@map("advanced_learners")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum AdvancedLearnerStatus {
@@ -1455,6 +1536,7 @@ model ContentBeyondSyllabus {
   courseOffering CourseOffering @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
 
   @@map("content_beyond_syllabus")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum BeyondSyllabusActivityType {
@@ -1501,6 +1583,7 @@ model Survey {
   surveyResponses SurveyResponse[]
 
   @@map("surveys")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum SurveyType {
@@ -1540,6 +1623,7 @@ model SurveyResponse {
   survey Survey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
 
   @@map("survey_responses")
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 enum ResponseStatus {
@@ -1696,6 +1780,672 @@ enum NotificationStatus {
   sent
   failed
   read
+}
+
+
+// ============================================================================
+// AI SYSTEM (PR #2 - 21 new models)
+// ============================================================================
+
+model AIConfiguration {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  chatbotEnabled    Boolean  @default(true)
+  chatbotName       String   @default("EduOBE Assistant")
+  chatbotWelcome    String   @default("Hello! How can I help you today?")
+  model             String   @default("gpt-4o-mini")
+  temperature       Decimal  @default(0.7) @db.Decimal(3, 2)
+  maxTokens         Int      @default(2000)
+  dataRetentionDays Int      @default(90)
+  guardrails        Json?
+  prompts           Json?
+  fallbackMessage   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("ai_configurations")
+}
+
+model AIConversation {
+  id            String               @id @default(cuid())
+  tenantId      String
+  userId        String
+  title         String?
+  topic         String?
+  context       Json?
+  status        AIConversationStatus @default(active)
+  messageCount  Int                  @default(0)
+  lastMessageAt DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AIMessage[]
+
+  @@index([tenantId, userId])
+  @@map("ai_conversations")
+}
+
+enum AIConversationStatus {
+  active
+  archived
+}
+
+model AIMessage {
+  id             String         @id @default(cuid())
+  tenantId       String
+  conversationId String
+  role           AIMessageRole
+  content        String
+  tokens         Int?
+  latencyMs      Int?
+  metadata       Json?
+  feedbackId     String?
+  createdAt      DateTime       @default(now())
+
+  // Relations
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  feedback     AIFeedback?   @relation(fields: [feedbackId], references: [id])
+
+  @@index([tenantId, conversationId])
+  @@map("ai_messages")
+}
+
+enum AIMessageRole {
+  system
+  user
+  assistant
+}
+
+model AIFeedback {
+  id           String         @id @default(cuid())
+  tenantId     String
+  userId       String?
+  feedbackType AIFeedbackType
+  targetType   String?
+  targetId     String?
+  rating       Int?
+  comment      String?
+  metadata     Json?
+  createdAt    DateTime       @default(now())
+
+  // Relations
+  tenant   Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User?       @relation(fields: [userId], references: [id])
+  messages AIMessage[]
+
+  @@index([tenantId, feedbackType])
+  @@map("ai_feedback")
+}
+
+enum AIFeedbackType {
+  helpful
+  not_helpful
+  inaccurate
+  inappropriate
+  other
+}
+
+model CourseRecommendation {
+  id                   String               @id @default(cuid())
+  tenantId             String
+  studentId            String
+  courseId             String?
+  recommendedCourseIds Json?
+  reason               String?
+  score                Decimal?             @db.Decimal(5, 2)
+  model                String?
+  source               String?
+  status               RecommendationStatus @default(pending)
+  consumedAt           DateTime?
+  createdAt            DateTime             @default(now())
+
+  // Relations
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student  Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course   Course?   @relation(fields: [courseId], references: [id])
+  feedback RecommendationFeedback[]
+
+  @@index([tenantId, studentId])
+  @@map("course_recommendations")
+}
+
+enum RecommendationStatus {
+  pending
+  accepted
+  dismissed
+  expired
+}
+
+model RecommendationFeedback {
+  id               String   @id @default(cuid())
+  tenantId         String
+  recommendationId String
+  userId           String?
+  feedback         String
+  rating           Int?
+  createdAt        DateTime @default(now())
+
+  // Relations
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recommendation CourseRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  user           User?               @relation(fields: [userId], references: [id])
+
+  @@map("recommendation_feedbacks")
+}
+
+model LearningPath {
+  id            String               @id @default(cuid())
+  tenantId      String
+  studentId     String?
+  programId     String?
+  title         String
+  description   String?
+  goal          String?
+  durationWeeks Int?
+  difficulty    LearningPathDifficulty @default(intermediate)
+  status        LearningPathStatus   @default(active)
+  generatedBy   String?
+  model         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  tenant  Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student?            @relation(fields: [studentId], references: [id])
+  program Program?            @relation(fields: [programId], references: [id])
+  nodes   LearningPathNode[]
+
+  @@index([tenantId, studentId])
+  @@map("learning_paths")
+}
+
+enum LearningPathDifficulty {
+  beginner
+  intermediate
+  advanced
+}
+
+enum LearningPathStatus {
+  active
+  completed
+  archived
+}
+
+model LearningPathNode {
+  id             String                   @id @default(cuid())
+  tenantId       String
+  learningPathId String
+  courseId       String?
+  order          Int
+  title          String
+  description    String?
+  resources      Json?
+  estimatedHours Float?
+  prerequisites  Json?
+  status         LearningPathNodeStatus   @default(pending)
+  completedAt    DateTime?
+  createdAt      DateTime                 @default(now())
+
+  // Relations
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  learningPath LearningPath @relation(fields: [learningPathId], references: [id], onDelete: Cascade)
+  course       Course?      @relation(fields: [courseId], references: [id])
+
+  @@index([tenantId, learningPathId])
+  @@map("learning_path_nodes")
+}
+
+enum LearningPathNodeStatus {
+  pending
+  in_progress
+  completed
+  skipped
+}
+
+model PersonalizedStudyPlan {
+  id          String         @id @default(cuid())
+  tenantId    String
+  studentId   String?
+  programId   String?
+  courseId    String?
+  title       String
+  weekRange   String?
+  schedule    Json?
+  tasks       Json?
+  status      StudyPlanStatus @default(active)
+  generatedBy String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id])
+  program Program? @relation(fields: [programId], references: [id])
+  course  Course?  @relation(fields: [courseId], references: [id])
+
+  @@index([tenantId, studentId])
+  @@map("personalized_study_plans")
+}
+
+enum StudyPlanStatus {
+  draft
+  active
+  completed
+  archived
+}
+
+model SkillGapAnalysis {
+  id             String          @id @default(cuid())
+  tenantId       String
+  studentId      String?
+  courseId       String?
+  title          String
+  detectedSkills Json?
+  missingSkills  Json?
+  suggestions    Json?
+  score          Decimal?        @db.Decimal(5, 2)
+  status         SkillGapStatus  @default(pending)
+  analyzedAt     DateTime        @default(now())
+
+  // Relations
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id])
+  course  Course?  @relation(fields: [courseId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("skill_gap_analyses")
+}
+
+enum SkillGapStatus {
+  pending
+  resolved
+  verified
+}
+
+model SentimentAnalysis {
+  id               String           @id @default(cuid())
+  tenantId         String
+  courseOfferingId String?
+  source           SentimentSource
+  sourceId         String?
+  text             String
+  sentiment        SentimentLabel
+  score            Decimal          @db.Decimal(5, 4)
+  confidence       Decimal          @db.Decimal(5, 4)
+  keywords         Json?
+  summary          String?
+  analyzedAt       DateTime         @default(now())
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering? @relation(fields: [courseOfferingId], references: [id])
+
+  @@index([tenantId, source])
+  @@map("sentiment_analyses")
+}
+
+enum SentimentSource {
+  feedback
+  survey
+  review
+  social
+  comment
+  other
+}
+
+enum SentimentLabel {
+  positive
+  neutral
+  negative
+  mixed
+}
+
+model ContentGenerationRequest {
+  id          String          @id @default(cuid())
+  tenantId    String
+  userId      String?
+  courseId    String?
+  contentType AIContentType
+  prompt      String
+  parameters  Json?
+  status      AIContentStatus @default(pending)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  // Relations
+  tenant   Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User?              @relation(fields: [userId], references: [id])
+  course   Course?            @relation(fields: [courseId], references: [id])
+  contents GeneratedContent[]
+
+  @@index([tenantId, contentType])
+  @@map("content_generation_requests")
+}
+
+enum AIContentType {
+  lesson_plan
+  quiz
+  summary
+  notes
+  assignment
+  question_paper
+  mooc
+  case_study
+  study_guide
+  rubric
+}
+
+enum AIContentStatus {
+  pending
+  processing
+  completed
+  failed
+  cancelled
+}
+
+model GeneratedContent {
+  id          String           @id @default(cuid())
+  tenantId    String
+  requestId   String?
+  courseId    String?
+  userId      String?
+  contentType AIContentType
+  title       String?
+  content     String
+  format      AIContentFormat  @default(markdown)
+  tokens      Int?
+  model       String?
+  status      AIContentStatus  @default(completed)
+  feedback    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  tenant  Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  request ContentGenerationRequest? @relation(fields: [requestId], references: [id])
+  course  Course?                @relation(fields: [courseId], references: [id])
+  user    User?                  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, contentType])
+  @@map("generated_contents")
+}
+
+enum AIContentFormat {
+  markdown
+  html
+  plaintext
+  pdf
+  docx
+}
+
+model AIQuestion {
+  id            String           @id @default(cuid())
+  tenantId      String
+  courseId      String?
+  userId        String?
+  type          AIQuestionType
+  difficulty    DifficultyLevel
+  topic         String?
+  question      String
+  options       Json?
+  correctAnswer String?
+  explanation   String?
+  bloomLevel    BloomLevel?
+  marks         Int              @default(1)
+  model         String?
+  status        AIQuestionStatus @default(draft)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  // Relations
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  course    Course?            @relation(fields: [courseId], references: [id])
+  user      User?              @relation(fields: [userId], references: [id])
+  evaluations AnswerEvaluation[]
+
+  @@index([tenantId, courseId])
+  @@map("ai_questions")
+}
+
+enum AIQuestionType {
+  mcq
+  true_false
+  short_answer
+  long_answer
+  fill_blank
+  numerical
+}
+
+enum AIQuestionStatus {
+  draft
+  approved
+  archived
+}
+
+model AnswerEvaluation {
+  id             String   @id @default(cuid())
+  tenantId       String
+  userId         String?
+  aiQuestionId   String?
+  question       String
+  studentAnswer  String
+  expectedAnswer String?
+  rubric         Json?
+  score          Decimal? @db.Decimal(5, 2)
+  maxScore       Decimal? @db.Decimal(5, 2)
+  feedback       String?
+  highlights     Json?
+  model          String?
+  evaluatedAt    DateTime @default(now())
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id])
+  aiQuestion AIQuestion? @relation(fields: [aiQuestionId], references: [id])
+
+  @@index([tenantId, userId])
+  @@map("answer_evaluations")
+}
+
+model DropoutPrediction {
+  id               String           @id @default(cuid())
+  tenantId         String
+  studentId        String
+  courseOfferingId String?
+  riskScore        Decimal          @db.Decimal(5, 2)
+  riskLevel        RiskLevel
+  factors          Json?
+  intervention     Json?
+  model            String?
+  modelVersion     String?
+  predictedAt      DateTime         @default(now())
+  status           PredictionStatus @default(active)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student        Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering? @relation(fields: [courseOfferingId], references: [id])
+
+  @@index([tenantId, studentId])
+  @@map("dropout_predictions")
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum PredictionStatus {
+  active
+  monitored
+  resolved
+  outdated
+}
+
+model AtRiskStudent {
+  id                String       @id @default(cuid())
+  tenantId          String
+  studentId         String
+  courseOfferingId  String?
+  riskScore         Decimal      @db.Decimal(5, 2)
+  riskLevel         RiskLevel
+  reasons           Json?
+  attendancePercent Decimal?     @db.Decimal(5, 2)
+  marksAverage      Decimal?     @db.Decimal(5, 2)
+  status            AtRiskStatus @default(monitored)
+  interventionPlan  Json?
+  lastEvaluatedAt   DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student        Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseOffering CourseOffering? @relation(fields: [courseOfferingId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("at_risk_students")
+}
+
+enum AtRiskStatus {
+  monitored
+  intervention_in_place
+  improved
+  resolved
+  graduated
+}
+
+model SmartSearchQuery {
+  id          String             @id @default(cuid())
+  tenantId    String
+  userId      String?
+  query       String
+  filters     Json?
+  results     Json?
+  resultCount Int                @default(0)
+  score       Decimal?           @db.Decimal(5, 2)
+  latencyMs   Int?
+  engine      String?
+  status      SmartSearchStatus  @default(completed)
+  createdAt   DateTime           @default(now())
+
+  // Relations
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User?   @relation(fields: [userId], references: [id])
+  feedback SearchResultFeedback[]
+
+  @@index([tenantId, userId])
+  @@map("smart_search_queries")
+}
+
+enum SmartSearchStatus {
+  pending
+  completed
+  failed
+}
+
+model SearchResultFeedback {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  queryId   String?
+  resultId  String?
+  relevant  Boolean?
+  rating    Int?
+  comment   String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?            @relation(fields: [userId], references: [id])
+  query  SmartSearchQuery? @relation(fields: [queryId], references: [id])
+
+  @@map("search_result_feedbacks")
+}
+
+model AIUsageLog {
+  id           String        @id @default(cuid())
+  tenantId     String
+  userId       String?
+  feature      String
+  model        String?
+  action       String
+  inputTokens  Int           @default(0)
+  outputTokens Int           @default(0)
+  cost         Decimal?      @db.Decimal(10, 6)
+  latencyMs    Int?
+  status       AIUsageStatus @default(success)
+  error        String?
+  metadata     Json?
+  createdAt    DateTime      @default(now())
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, feature])
+  @@index([tenantId, createdAt])
+  @@map("ai_usage_logs")
+}
+
+enum AIUsageStatus {
+  success
+  failed
+  cancelled
+}
+
+model AIJob {
+  id          String      @id @default(cuid())
+  tenantId    String
+  userId      String?
+  jobType     AIJobType
+  payload     Json?
+  status      AIJobStatus @default(queued)
+  progress    Int         @default(0)
+  attempts    Int         @default(0)
+  result      Json?
+  error       String?
+  queuedAt    DateTime    @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("ai_jobs")
+}
+
+enum AIJobType {
+  sentiment_batch
+  dropout_batch
+  recommendation_batch
+  content_batch
+  search_index
+  embedding_batch
+  summary_batch
+}
+
+enum AIJobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
 }
 
 // ============================================================================

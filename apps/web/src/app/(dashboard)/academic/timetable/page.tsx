@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DataTable } from '@/components/ui/data-table';
-import { useTimetables, useDeleteTimetable } from '@/services/timetable.service';
+import { useTimetableClasses, useDeleteClass } from '@/services/timetable.service';
 import { useCourseOfferings } from '@/services/course-offering.service';
 import { useRooms } from '@/services/room.service';
 import { Badge } from '@/components/ui/badge';
@@ -41,10 +41,10 @@ const dayLabels = {
 export default function TimetablePage() {
   const [filters, setFilters] = useState<any>({});
   const [searchQuery, setSearchQuery] = useState('');
-  const { data: timetables, isLoading } = useTimetables(filters);
+  const { data: timetables, isLoading } = useTimetableClasses(filters);
   const { data: courseOfferings } = useCourseOfferings({ status: 'active' });
   const { data: rooms } = useRooms({ status: 'available' });
-  const deleteMutation = useDeleteTimetable();
+  const deleteMutation = useDeleteClass();
 
   const handleDelete = (id: string) => {
     if (!confirm('Are you sure you want to delete this timetable entry?')) {

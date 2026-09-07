@@ -65,7 +65,7 @@ export default function AccreditationPage() {
     {
       accessorKey: 'type',
       header: 'Type',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('type').toUpperCase()}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{String(row.getValue('type')).toUpperCase()}</Badge>,
     },
     {
       accessorKey: 'applicationDate',

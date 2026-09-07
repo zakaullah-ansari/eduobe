@@ -210,12 +210,12 @@ export default function AchievementsPage() {
     {
       accessorKey: 'recipientType',
       header: 'Recipient Type',
-      cell: ({ row }) => <Badge variant="secondary">{row.getValue('recipientType')}</Badge>,
+      cell: ({ row }) => <Badge variant="secondary">{String(row.getValue('recipientType'))}</Badge>,
     },
     {
       accessorKey: 'category',
       header: 'Category',
-      cell: ({ row }) => <Badge variant="outline">{row.getValue('category').replace('_', ' ')}</Badge>,
+      cell: ({ row }) => <Badge variant="outline">{String(row.getValue('category')).replace('_', ' ')}</Badge>,
     },
     {
       accessorKey: 'awardDate',
